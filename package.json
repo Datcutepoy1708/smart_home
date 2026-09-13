@@ -1,0 +1,30 @@
+{
+  "name": "smart-home-iot",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/api",
+    "apps/mobile"
+  ],
+  "scripts": {
+    "device:setup": "node --env-file=.env apps/api/dist/devices/setup-device.js",
+    "device:simulate": "node scripts/simulate-telemetry.mjs",
+    "db:deploy:local": "node scripts/migrate-local.mjs",
+    "test:integration": "node scripts/test-integration.mjs",
+    "setup:local": "node scripts/setup-local.mjs",
+    "dev:api": "npm run start:dev --workspace api",
+    "dev:mobile": "npm run start --workspace mobile",
+    "build": "npm run build --workspace api",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "test:e2e": "npm run test:e2e --workspace api",
+    "db:generate": "npm run prisma:generate --workspace api",
+    "db:migrate": "npm run prisma:migrate --workspace api",
+    "infra:up": "docker compose up -d",
+    "infra:down": "docker compose down"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}

@@ -1,0 +1,404 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AuthProvider {
+  LOCAL  @map("local")
+  GOOGLE @map("google")
+  OTP    @map("otp")
+}
+
+enum HouseholdRole {
+  OWNER  @map("owner")
+  MEMBER @map("member")
+  GUEST  @map("guest")
+}
+
+enum DeviceType {
+  LIGHT       @map("light")
+  FAN         @map("fan")
+  DOOR_SERVO  @map("door_servo")
+  DHT_SENSOR  @map("dht_sensor")
+  GAS_SENSOR  @map("gas_sensor")
+  FIRE_SENSOR @map("fire_sensor")
+}
+
+enum CommandSource {
+  APP      @map("app")
+  SCHEDULE @map("schedule")
+  RULE     @map("rule")
+  SCENE    @map("scene")
+  CHATBOT  @map("chatbot")
+  VOICE    @map("voice")
+}
+
+enum CommandStatus {
+  PENDING      @map("pending")
+  SENT         @map("sent")
+  ACKNOWLEDGED @map("acknowledged")
+  SUCCEEDED    @map("succeeded")
+  FAILED       @map("failed")
+  TIMEOUT      @map("timeout")
+}
+
+enum AlertSeverity {
+  INFO     @map("info")
+  WARNING  @map("warning")
+  CRITICAL @map("critical")
+}
+
+enum DeliveryStatus {
+  PENDING @map("pending")
+  SENT    @map("sent")
+  FAILED  @map("failed")
+}
+
+enum SuggestionStatus {
+  PENDING   @map("pending")
+  ACCEPTED  @map("accepted")
+  DISMISSED @map("dismissed")
+}
+
+model User {
+  id                 String            @id @default(uuid()) @db.Uuid
+  name               String            @db.VarChar(100)
+  email              String            @unique @db.VarChar(150)
+  phone              String?           @unique @db.VarChar(20)
+  passwordHash       String?           @map("password_hash") @db.VarChar(255)
+  authProvider       AuthProvider      @default(LOCAL) @map("auth_provider")
+  googleId           String?           @unique @map("google_id") @db.VarChar(100)
+  avatarUrl          String?           @map("avatar_url")
+  isActive           Boolean           @default(true) @map("is_active")
+  createdAt          DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  otpCodes           OtpCode[]
+  fcmTokens          FcmToken[]
+  createdHouseholds  Household[]       @relation("HouseholdCreator")
+  memberships        HouseholdMember[] @relation("HouseholdMemberUser")
+  sentInvitations    HouseholdMember[] @relation("HouseholdInviter")
+  requestedCommands  DeviceCommand[]
+  actionLogs         ActionLog[]
+  acknowledgedAlerts Alert[]
+  schedules          Schedule[]
+  rules              Rule[]
+  scenes             Scene[]
+  notifications      Notification[]
+  chatbotLinks       ChatbotLink[]
+  refreshSessions    RefreshSession[]
+
+  @@map("users")
+}
+
+model RefreshSession {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @map("token_hash") @db.VarChar(64)
+  userAgent String?   @map("user_agent") @db.VarChar(255)
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@map("refresh_sessions")
+}
+
+model OtpCode {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String?  @map("user_id") @db.Uuid
+  destination String   @db.VarChar(150)
+  codeHash    String   @map("code_hash") @db.VarChar(255)
+  purpose     String   @db.VarChar(30)
+  expiresAt   DateTime @map("expires_at") @db.Timestamptz(6)
+  isUsed      Boolean  @default(false) @map("is_used")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("otp_codes")
+}
+
+model FcmToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  token     String
+  platform  String   @default("android") @db.VarChar(20)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, token])
+  @@map("fcm_tokens")
+}
+
+model Household {
+  id          String            @id @default(uuid()) @db.Uuid
+  name        String            @db.VarChar(100)
+  createdBy   String            @map("created_by") @db.Uuid
+  createdAt   DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  creator     User              @relation("HouseholdCreator", fields: [createdBy], references: [id])
+  members     HouseholdMember[]
+  devices     Device[]
+  commands    DeviceCommand[]
+  actionLogs  ActionLog[]
+  alerts      Alert[]
+  schedules   Schedule[]
+  rules       Rule[]
+  scenes      Scene[]
+  suggestions HabitSuggestion[]
+
+  @@map("households")
+}
+
+model HouseholdMember {
+  id          String        @id @default(uuid()) @db.Uuid
+  householdId String        @map("household_id") @db.Uuid
+  userId      String        @map("user_id") @db.Uuid
+  role        HouseholdRole @default(MEMBER)
+  invitedBy   String?       @map("invited_by") @db.Uuid
+  expiresAt   DateTime?     @map("expires_at") @db.Timestamptz(6)
+  joinedAt    DateTime      @default(now()) @map("joined_at") @db.Timestamptz(6)
+  household   Household     @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  user        User          @relation("HouseholdMemberUser", fields: [userId], references: [id], onDelete: Cascade)
+  inviter     User?         @relation("HouseholdInviter", fields: [invitedBy], references: [id])
+
+  @@unique([householdId, userId])
+  @@map("household_members")
+}
+
+model Device {
+  id                String             @id @default(uuid()) @db.Uuid
+  householdId       String             @map("household_id") @db.Uuid
+  deviceUid         String             @unique @map("device_uid") @db.VarChar(100)
+  name              String             @db.VarChar(100)
+  deviceType        DeviceType         @map("device_type")
+  room              String?            @db.VarChar(50)
+  mqttTopic         String             @unique @map("mqtt_topic") @db.VarChar(150)
+  authTokenHash     String             @map("auth_token_hash") @db.VarChar(255)
+  firmwareVersion   String?            @map("firmware_version") @db.VarChar(30)
+  isOnline          Boolean            @default(false) @map("is_online")
+  lastSeenAt        DateTime?          @map("last_seen_at") @db.Timestamptz(6)
+  createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  household         Household          @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  state             DeviceState?
+  commands          DeviceCommand[]
+  readings          SensorReading[]
+  telemetryMessages TelemetryMessage[]
+  actionLogs        ActionLog[]
+  alerts            Alert[]
+  schedules         Schedule[]
+  sceneActions      SceneAction[]
+  suggestions       HabitSuggestion[]
+
+  @@index([householdId, id])
+  @@map("devices")
+}
+
+model TelemetryMessage {
+  deviceId   String   @map("device_id") @db.Uuid
+  messageId  String   @map("message_id") @db.Uuid
+  eventAt    DateTime @map("event_at") @db.Timestamptz(6)
+  receivedAt DateTime @default(now()) @map("received_at") @db.Timestamptz(6)
+  device     Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@id([deviceId, messageId])
+  @@map("telemetry_messages")
+}
+
+model DeviceState {
+  deviceId  String   @id @map("device_id") @db.Uuid
+  state     Json     @default("{}")
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  device    Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@map("device_states")
+}
+
+model DeviceCommand {
+  id             String        @id @default(uuid()) @db.Uuid
+  householdId    String        @map("household_id") @db.Uuid
+  deviceId       String        @map("device_id") @db.Uuid
+  requestedBy    String?       @map("requested_by") @db.Uuid
+  command        Json
+  source         CommandSource @default(APP)
+  status         CommandStatus @default(PENDING)
+  errorMessage   String?       @map("error_message")
+  requestedAt    DateTime      @default(now()) @map("requested_at") @db.Timestamptz(6)
+  sentAt         DateTime?     @map("sent_at") @db.Timestamptz(6)
+  acknowledgedAt DateTime?     @map("acknowledged_at") @db.Timestamptz(6)
+  completedAt    DateTime?     @map("completed_at") @db.Timestamptz(6)
+  household      Household     @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  device         Device        @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  requester      User?         @relation(fields: [requestedBy], references: [id], onDelete: SetNull)
+
+  @@index([deviceId, requestedAt(sort: Desc)])
+  @@index([status, requestedAt])
+  @@map("device_commands")
+}
+
+model SensorReading {
+  id         BigInt   @id @default(autoincrement())
+  deviceId   String   @map("device_id") @db.Uuid
+  metric     String   @db.VarChar(30)
+  value      Decimal  @db.Decimal(10, 2)
+  unit       String?  @db.VarChar(10)
+  recordedAt DateTime @default(now()) @map("recorded_at") @db.Timestamptz(6)
+  device     Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([deviceId, metric, recordedAt(sort: Desc)])
+  @@map("sensor_readings")
+}
+
+model ActionLog {
+  id          BigInt        @id @default(autoincrement())
+  householdId String        @map("household_id") @db.Uuid
+  deviceId    String?       @map("device_id") @db.Uuid
+  userId      String?       @map("user_id") @db.Uuid
+  action      String        @db.VarChar(50)
+  source      CommandSource
+  oldValue    Json?         @map("old_value")
+  newValue    Json?         @map("new_value")
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  household   Household     @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  device      Device?       @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+  user        User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([householdId, createdAt(sort: Desc)])
+  @@index([deviceId, createdAt(sort: Desc)])
+  @@map("action_logs")
+}
+
+model Alert {
+  id             String         @id @default(uuid()) @db.Uuid
+  householdId    String         @map("household_id") @db.Uuid
+  deviceId       String?        @map("device_id") @db.Uuid
+  alertType      String         @map("alert_type") @db.VarChar(30)
+  severity       AlertSeverity
+  message        String
+  isAcknowledged Boolean        @default(false) @map("is_acknowledged")
+  acknowledgedBy String?        @map("acknowledged_by") @db.Uuid
+  acknowledgedAt DateTime?      @map("acknowledged_at") @db.Timestamptz(6)
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  household      Household      @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  device         Device?        @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+  acknowledger   User?          @relation(fields: [acknowledgedBy], references: [id], onDelete: SetNull)
+  notifications  Notification[]
+
+  @@index([householdId, createdAt(sort: Desc)])
+  @@map("alerts")
+}
+
+model Notification {
+  id             String         @id @default(uuid()) @db.Uuid
+  userId         String         @map("user_id") @db.Uuid
+  alertId        String?        @map("alert_id") @db.Uuid
+  title          String         @db.VarChar(150)
+  body           String
+  isRead         Boolean        @default(false) @map("is_read")
+  fcmMessageId   String?        @map("fcm_message_id") @db.VarChar(150)
+  deliveryStatus DeliveryStatus @default(PENDING) @map("delivery_status")
+  sentAt         DateTime?      @map("sent_at") @db.Timestamptz(6)
+  failureReason  String?        @map("failure_reason")
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  alert          Alert?         @relation(fields: [alertId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("notifications")
+}
+
+model Schedule {
+  id          String    @id @default(uuid()) @db.Uuid
+  householdId String    @map("household_id") @db.Uuid
+  deviceId    String    @map("device_id") @db.Uuid
+  action      Json
+  timeOfDay   DateTime  @map("time_of_day") @db.Time(6)
+  repeatDays  Int[]     @default([1, 2, 3, 4, 5, 6, 7]) @map("repeat_days") @db.SmallInt
+  timezone    String    @default("Asia/Ho_Chi_Minh") @db.VarChar(50)
+  nextRunAt   DateTime? @map("next_run_at") @db.Timestamptz(6)
+  isActive    Boolean   @default(true) @map("is_active")
+  createdBy   String    @map("created_by") @db.Uuid
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  device      Device    @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  creator     User      @relation(fields: [createdBy], references: [id])
+
+  @@map("schedules")
+}
+
+model Rule {
+  id          String    @id @default(uuid()) @db.Uuid
+  householdId String    @map("household_id") @db.Uuid
+  name        String    @db.VarChar(100)
+  condition   Json
+  action      Json
+  priority    Int       @default(0) @db.SmallInt
+  isActive    Boolean   @default(true) @map("is_active")
+  createdBy   String    @map("created_by") @db.Uuid
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  creator     User      @relation(fields: [createdBy], references: [id])
+
+  @@map("rules")
+}
+
+model Scene {
+  id          String        @id @default(uuid()) @db.Uuid
+  householdId String        @map("household_id") @db.Uuid
+  name        String        @db.VarChar(100)
+  icon        String?       @db.VarChar(50)
+  createdBy   String        @map("created_by") @db.Uuid
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  household   Household     @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  creator     User          @relation(fields: [createdBy], references: [id])
+  actions     SceneAction[]
+
+  @@map("scenes")
+}
+
+model SceneAction {
+  id         String @id @default(uuid()) @db.Uuid
+  sceneId    String @map("scene_id") @db.Uuid
+  deviceId   String @map("device_id") @db.Uuid
+  action     Json
+  orderIndex Int    @default(0) @map("order_index") @db.SmallInt
+  scene      Scene  @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+  device     Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@map("scene_actions")
+}
+
+model HabitSuggestion {
+  id                 String           @id @default(uuid()) @db.Uuid
+  householdId        String           @map("household_id") @db.Uuid
+  deviceId           String           @map("device_id") @db.Uuid
+  patternDescription String           @map("pattern_description")
+  suggestedAction    Json             @map("suggested_action")
+  confidenceScore    Decimal?         @map("confidence_score") @db.Decimal(4, 2)
+  status             SuggestionStatus @default(PENDING)
+  createdAt          DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  household          Household        @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  device             Device           @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@map("habit_suggestions")
+}
+
+model ChatbotLink {
+  id       String   @id @default(uuid()) @db.Uuid
+  userId   String   @map("user_id") @db.Uuid
+  platform String   @db.VarChar(20)
+  chatId   String   @map("chat_id") @db.VarChar(100)
+  linkedAt DateTime @default(now()) @map("linked_at") @db.Timestamptz(6)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([platform, chatId])
+  @@map("chatbot_links")
+}
