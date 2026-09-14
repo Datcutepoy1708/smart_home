@@ -32,8 +32,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   plugins: [
     'expo-router',
     'expo-secure-store',
-    '@react-native-firebase/app',
-    '@react-native-firebase/messaging',
+    // @react-native-firebase/app and @react-native-firebase/messaging are
+    // listed as dependencies but their Expo config plugins require
+    // google-services.json (Android) and GoogleService-Info.plist (iOS)
+    // which are not committed. Add them back in Sprint 3 once Firebase
+    // credentials are available. The JS packages remain installed so
+    // imports compile, but FCM will not function until Sprint 3.
     [
       'expo-splash-screen',
       {

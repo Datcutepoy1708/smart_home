@@ -229,6 +229,28 @@ Only after these conditions pass should Sprint 2 device control begin.
   creation and repeat were checked against the dedicated test database.
 - No commands, FCM delivery, invitations, or automation features were added.
 
+### Known issues fixed (2026-09-14)
+
+- [FIXED] app.config.ts previously listed @react-native-firebase/app and
+  @react-native-firebase/messaging as Expo config plugins. These plugins require
+  google-services.json (Android) and GoogleService-Info.plist (iOS) which are
+  not committed. Running `npx expo prebuild` would have failed. Both plugins
+  were removed from the plugins array; the npm packages remain as dependencies
+  so imports continue to compile. They will be re-added in Sprint 3 once
+  Firebase platform credentials are available.
+
+### Outstanding before Sprint 2
+
+- Native development build on Android or iOS has not been launched. The
+  following manual checklist must pass on a real or emulated device before
+  Sprint 2 begins:
+  1. Install the development build (via EAS or `npx expo run:android`).
+  2. Register a new account.
+  3. Close and reopen the app; confirm session is restored without logging in again.
+  4. Run `npm run device:setup` and `npm run device:simulate` to publish a reading.
+  5. Confirm temperature and humidity appear in the app.
+  6. Sign out and confirm the old refresh token is rejected.
+
 Already scaffolded:
 
 - npm monorepo with NestJS API and Expo mobile app.
