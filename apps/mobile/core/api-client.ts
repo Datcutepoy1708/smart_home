@@ -12,8 +12,16 @@ export async function requestJson(
   path: string,
   options: RequestInit = {},
 ): Promise<unknown> {
-  const base = process.env.EXPO_PUBLIC_API_URL;
-  if (!base) throw new ApiError("API address is not configured.");
+  const rawBase = process.env.EXPO_PUBLIC_API_URL;
+  if (!rawBase) throw new ApiError("API address is not configured.");
+  const isAndroid =
+    process.env.EXPO_OS === "android" ||
+    (typeof navigator !== "undefined" &&
+      /android/i.test(navigator.userAgent ?? ""));
+  const base =
+    isAndroid && rawBase.includes("localhost")
+      ? rawBase.replace("localhost", "10.0.2.2")
+      : rawBase;
   const controller = new AbortController();
   const timeout = Number(process.env.EXPO_PUBLIC_REQUEST_TIMEOUT_MS ?? 10000);
   if (!Number.isInteger(timeout) || timeout < 1000 || timeout > 60000)

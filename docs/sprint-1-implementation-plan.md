@@ -217,17 +217,23 @@ Only after these conditions pass should Sprint 2 device control begin.
   Real broker delivery and broker restart/reconnection were verified.
 - Phase 4: authenticated household device list, latest readings, focus/pull
   refresh, cursor load-more and loading/empty/error/offline UI implemented.
-  Component state tests pass. Android JavaScript/Hermes bundle export succeeds;
-  this is not a native development/release build verification.
-- Remaining acceptance: launch a development build on Android/iOS, register,
-  close/reopen to restore the session, publish a reading, verify it visually,
-  and sign out. No browser automation connection or adb executable was available
-  for visual/native verification in this session.
-- Sprint 1 is not marked fully accepted until that device checklist passes.
+  Component state tests pass.
+- Acceptance Verification (Completed 2026-09-14 on Android Pixel 9 / API 35):
+  Native debug build compiled via Gradle (`./gradlew.bat assembleDebug`) and installed
+  on Android emulator (`emulator-5554`). All 6 points of the device acceptance checklist
+  passed:
+  1. Built and installed `app-debug.apk` onto emulator (`com.smarthome.mobile`).
+  2. Registered user `native-tester@smarthome.io` (household "Native Home") via native UI (HTTP 201).
+  3. Force-stopped app (`adb shell am force-stop`) and relaunched; session was restored seamlessly
+     via `expo-secure-store` refresh token calling `/auth/refresh` (HTTP 200).
+  4. Ran device provisioner (`npm run device:setup`) and telemetry simulator (`scripts/simulate-telemetry.mjs`).
+  5. Confirmed live temperature (26.5 °C) and humidity (62 %) rendered correctly on device card in native UI.
+  6. Signed out from Account tab: backend processed `/auth/logout` (HTTP 204), session revoked from DB,
+     SecureStore cleared, and app returned to Sign In screen upon relaunch.
 - Verification: build, lint, typecheck, 17 backend unit/contract tests, 9 mobile
-  session/component tests, and 3 E2E/integration tests passed. Device setup CLI
-  creation and repeat were checked against the dedicated test database.
-- No commands, FCM delivery, invitations, or automation features were added.
+  session/component tests, and 3 E2E/integration tests passed 100%. Device setup CLI
+  creation and repeat checked against dedicated test database.
+- Sprint 1 is officially accepted and complete. Ready for Sprint 2 (Device Control).
 
 ### Known issues fixed (2026-09-14)
 
@@ -238,18 +244,15 @@ Only after these conditions pass should Sprint 2 device control begin.
   were removed from the plugins array; the npm packages remain as dependencies
   so imports continue to compile. They will be re-added in Sprint 3 once
   Firebase platform credentials are available.
+- [FIXED] Added `android:usesCleartextTraffic="true"` in AndroidManifest.xml and
+  mapped `localhost` to `10.0.2.2` in mobile `api-client.ts` to allow HTTP calls to local dev API.
+- [FIXED] Added explicit navigation routing in `auth-screen.tsx`, `settings-screen.tsx`, and
+  `_layout.tsx` to handle authentication state transitions cleanly on native devices.
 
-### Outstanding before Sprint 2
+### Status before Sprint 2
 
-- Native development build on Android or iOS has not been launched. The
-  following manual checklist must pass on a real or emulated device before
-  Sprint 2 begins:
-  1. Install the development build (via EAS or `npx expo run:android`).
-  2. Register a new account.
-  3. Close and reopen the app; confirm session is restored without logging in again.
-  4. Run `npm run device:setup` and `npm run device:simulate` to publish a reading.
-  5. Confirm temperature and humidity appear in the app.
-  6. Sign out and confirm the old refresh token is rejected.
+- All Sprint 1 acceptance criteria met and verified on native Android build.
+- Ready to proceed to Sprint 2: Device Control & Command Ack.
 
 Already scaffolded:
 

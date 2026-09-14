@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { router } from "expo-router";
 import { Pressable, ScrollView, Text } from "react-native";
 import { useSession } from "../../core/session-provider";
 import { styles as s } from "../../shared/components/screen-styles";
@@ -11,6 +12,7 @@ export default function SettingsScreen() {
     setError("");
     try {
       await session.logout();
+      router.replace("/sign-in");
     } catch {
       setError(
         "Sign out could not be completed. Check your connection and try again.",

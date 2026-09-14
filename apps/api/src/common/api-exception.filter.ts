@@ -23,7 +23,14 @@ export class ApiExceptionFilter implements ExceptionFilter {
           ? body.message
           : 'Request failed';
     if (status >= 500)
-      this.logger.error(JSON.stringify({ requestId, code: 'INTERNAL_ERROR' }));
+      this.logger.error(
+        JSON.stringify({
+          requestId,
+          code: 'INTERNAL_ERROR',
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+        }),
+      );
     response.setHeader('X-Request-Id', requestId);
     response
       .status(status)
