@@ -1,9 +1,13 @@
+import { useState } from "react";
 import { Pressable, SafeAreaView, ScrollView, Text, View } from "react-native";
 import { router } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useSession } from "../core/session-provider";
 import { styles as s } from "../shared/components/screen-styles";
 import { color, font, radius, spacing } from "../shared/theme";
+import { CreateHouseholdModal } from "../features/households/create-household-modal";
+import { JoinHouseholdModal } from "../features/households/join-household-modal";
+import { MembersManagementModal } from "../features/households/members-management-modal";
 
 /**
  * Household selector modal — s3.png reference.
@@ -25,6 +29,11 @@ export default function HouseholdModal() {
   const households = session.identity?.households ?? [];
   // Active household is always [0] in Sprint 1
   const activeId = households[0]?.id ?? null;
+  const activeHousehold = households[0];
+
+  const [showCreate, setShowCreate] = useState(false);
+  const [showJoin, setShowJoin] = useState(false);
+  const [showMembers, setShowMembers] = useState(false);
 
   return (
     <SafeAreaView style={[s.screen, { backgroundColor: "rgba(0,0,0,0.01)" }]}>
@@ -173,54 +182,77 @@ export default function HouseholdModal() {
             })}
           </ScrollView>
 
-          {/* Action buttons — deferred */}
+          {/* Action buttons */}
           <View
             style={{
               paddingHorizontal: spacing.xxl,
-              gap: spacing.md,
+              gap: spacing.sm,
               paddingTop: spacing.md,
             }}
           >
+            {/* Create new household */}
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Thêm ngôi nhà mới — chưa khả dụng"
-              disabled
-              style={[s.buttonOutline, { opacity: 0.4 }]}
+              accessibilityLabel="Thêm ngôi nhà mới"
+              onPress={() => setShowCreate(true)}
+              style={s.buttonOutline}
             >
               <View style={s.rowStart}>
                 <Ionicons
                   name="add-circle-outline"
                   size={18}
-                  color={color.textTertiary}
+                  color={color.primary}
                 />
-                <Text style={[s.buttonOutlineText, { color: color.textTertiary }]}>
+                <Text style={s.buttonOutlineText}>
                   Thêm ngôi nhà mới
                 </Text>
               </View>
             </Pressable>
 
+            {/* Join household by invite code */}
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Quản lý thiết lập ngôi nhà — chưa khả dụng"
-              disabled
-              style={[s.listItem, { opacity: 0.4 }]}
+              accessibilityLabel="Gia nhập nhà bằng mã mời"
+              onPress={() => setShowJoin(true)}
+              style={s.buttonOutline}
             >
               <View style={s.rowStart}>
                 <Ionicons
-                  name="settings-outline"
+                  name="ticket-outline"
+                  size={18}
+                  color={color.primary}
+                />
+                <Text style={s.buttonOutlineText}>
+                  Gia nhập bằng mã mời
+                </Text>
+              </View>
+            </Pressable>
+
+            {/* Manage household members */}
+            {activeHousehold ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Quản lý thành viên ngôi nhà"
+                onPress={() => setShowMembers(true)}
+                style={s.listItem}
+              >
+                <View style={s.rowStart}>
+                  <Ionicons
+                    name="people-outline"
+                    size={16}
+                    color={color.primary}
+                  />
+                  <Text style={[font.link, { color: color.primary }]}>
+                    Quản lý thành viên & chia sẻ nhà
+                  </Text>
+                </View>
+                <Ionicons
+                  name="chevron-forward-outline"
                   size={16}
                   color={color.textTertiary}
                 />
-                <Text style={[font.link, { color: color.textTertiary }]}>
-                  Quản lý thiết lập ngôi nhà
-                </Text>
-              </View>
-              <Ionicons
-                name="chevron-forward-outline"
-                size={16}
-                color={color.textTertiary}
-              />
-            </Pressable>
+              </Pressable>
+            ) : null}
           </View>
 
           {/* Cloud sync note */}
@@ -245,6 +277,32 @@ export default function HouseholdModal() {
           </View>
         </View>
       </View>
+
+      {/* Modals */}
+      <CreateHouseholdModal
+        visible={showCreate}
+        onClose={() => setShowCreate(false)}
+        session={session}
+        onCreatedSuccess={() => router.back()}
+      />
+
+      <JoinHouseholdModal
+        visible={showJoin}
+        onClose={() => setShowJoin(false)}
+        session={session}
+        onJoinedSuccess={() => router.back()}
+      />
+
+      {activeHousehold && (
+        <MembersManagementModal
+          visible={showMembers}
+          onClose={() => setShowMembers(false)}
+          session={session}
+          householdId={activeHousehold.id}
+          householdName={activeHousehold.name}
+          isOwner={activeHousehold.role === "owner"}
+        />
+      )}
     </SafeAreaView>
   );
 }

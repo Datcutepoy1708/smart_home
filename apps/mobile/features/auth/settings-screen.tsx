@@ -14,6 +14,7 @@ import { useSession } from "../../core/session-provider";
 import { styles as s } from "../../shared/components/screen-styles";
 import ScreenHeader from "../../shared/components/screen-header";
 import { color, font, radius, spacing } from "../../shared/theme";
+import { MembersManagementModal } from "../households/members-management-modal";
 
 function initials(name: string): string {
   return name
@@ -133,6 +134,7 @@ export default function SettingsScreen() {
   const { session } = useSession();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [membersModalVisible, setMembersModalVisible] = useState(false);
 
   const user = session.identity?.user;
   const households = session.identity?.households ?? [];
@@ -227,42 +229,45 @@ export default function SettingsScreen() {
 
             <Divider />
 
-            {/* Only current user shown — full member list is Sprint 2+ */}
-            <View style={s.listItem}>
+            {/* Member list item */}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Xem và quản lý thành viên gia đình"
+              onPress={() => setMembersModalVisible(true)}
+              style={s.listItem}
+            >
               <View style={s.listItemLeft}>
                 <View style={s.avatar}>
                   <Text style={s.avatarText}>{userInitials}</Text>
                 </View>
                 <View style={{ flex: 1, gap: 2 }}>
                   <Text style={font.label}>{user?.name ?? "—"} (Bạn)</Text>
-                  <Text style={font.caption}>{user?.email ?? "—"}</Text>
+                  <Text style={font.caption}>Chạm để xem & quản lý thành viên</Text>
                 </View>
               </View>
-              {primaryHousehold ? (
-                <View style={s.roleBadge}>
-                  <Text style={s.roleBadgeText}>
-                    {primaryHousehold.role === "owner" ? "Chủ nhà" : primaryHousehold.role}
-                  </Text>
-                </View>
-              ) : null}
-            </View>
+              <Ionicons
+                name="chevron-forward-outline"
+                size={16}
+                color={color.textTertiary}
+              />
+            </Pressable>
 
             <Divider />
 
-            {/* Invite member — deferred */}
+            {/* Invite member */}
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Mời thành viên mới — chưa khả dụng"
-              disabled
-              style={[s.listItem, { opacity: 0.4, justifyContent: "center" }]}
+              accessibilityLabel="Mời thành viên mới vào nhà"
+              onPress={() => setMembersModalVisible(true)}
+              style={[s.listItem, { justifyContent: "center" }]}
             >
               <Ionicons
                 name="person-add-outline"
                 size={18}
-                color={color.textTertiary}
+                color={color.primary}
               />
-              <Text style={[font.link, { marginLeft: spacing.sm, color: color.textTertiary }]}>
-                Mời thành viên mới
+              <Text style={[font.link, { marginLeft: spacing.sm, color: color.primary }]}>
+                Mời thành viên mới vào nhà
               </Text>
             </Pressable>
           </Section>
@@ -368,6 +373,17 @@ export default function SettingsScreen() {
 
         <View style={{ height: spacing.xl }} />
       </ScrollView>
+
+      {primaryHousehold && (
+        <MembersManagementModal
+          visible={membersModalVisible}
+          onClose={() => setMembersModalVisible(false)}
+          session={session}
+          householdId={primaryHousehold.id}
+          householdName={primaryHousehold.name}
+          isOwner={primaryHousehold.role === "owner"}
+        />
+      )}
     </SafeAreaView>
   );
 }
