@@ -12,6 +12,8 @@ import { AppService } from './app.service.js';
 import { validateEnvironment } from './config/environment.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 
+import { EnergyModule } from './energy/energy.module.js';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -26,6 +28,7 @@ import { PrismaModule } from './prisma/prisma.module.js';
     DevicesModule,
     TelemetryModule,
     AutomationsModule,
+    EnergyModule,
   ],
   controllers: [AppController],
   providers: [

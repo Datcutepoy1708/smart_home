@@ -21,6 +21,7 @@ import ScreenHeader from "../../shared/components/screen-header";
 import { color, font, radius, spacing } from "../../shared/theme";
 import type { Device } from "./device-data";
 import { FloatingVoiceButton } from "../voice/floating-voice-button";
+import { EnergyWidget } from "../energy/energy-widget";
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -488,6 +489,9 @@ export default function DevicesScreen() {
             clearButtonMode="while-editing"
           />
         </View>
+
+        {/* Energy Consumption & Electricity Cost Widget */}
+        {home ? <EnergyWidget householdId={home.id} /> : null}
 
         {/* Room filter chips */}
         {rooms.length > 0 ? (
