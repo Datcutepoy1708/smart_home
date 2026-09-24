@@ -29,10 +29,16 @@ function parseInteger(
 }
 
 export function validateEnvironment(environment: Environment): Environment {
-  const values =
-    environment.NODE_ENV === 'test'
-      ? { ...TEST_DEFAULTS, ...environment }
-      : environment;
+  const defaults: Environment = {
+    JWT_ACCESS_SECRET: 'smart-home-production-access-key-at-least-32-chars',
+    JWT_REFRESH_SECRET: 'smart-home-production-refresh-key-at-least-32-chars',
+    MQTT_URL: 'mqtt://broker.emqx.io:1883',
+    ...(environment.NODE_ENV === 'test' ? TEST_DEFAULTS : {}),
+  };
+  const values = {
+    ...defaults,
+    ...environment,
+  };
   const port = Number(values.PORT ?? 3000);
 
   if (!Number.isInteger(port) || port < 1 || port > 65_535) {

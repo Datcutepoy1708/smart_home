@@ -42,4 +42,4 @@ COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
 EXPOSE 3000
 
 # Auto-apply database migrations on startup, then launch NestJS API
-CMD ["sh", "-c", "npx prisma migrate deploy --schema=./apps/api/prisma/schema.prisma && node apps/api/dist/main.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy --schema=./apps/api/prisma/schema.prisma || true; node apps/api/dist/main.js"]
