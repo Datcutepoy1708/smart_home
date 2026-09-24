@@ -34,6 +34,8 @@ vi.mock("react-native", () => ({
   RefreshControl: "aside",
   TextInput: "input",
   Switch: "input",
+  Modal: "div",
+  Platform: { OS: "ios" },
   StyleSheet: { create: (value: unknown) => value },
 }));
 

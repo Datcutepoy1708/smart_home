@@ -10,6 +10,8 @@ import { ScenesController } from './scenes.controller.js';
 import { ScenesService } from './scenes.service.js';
 import { TimersController } from './timers.controller.js';
 import { TimersService } from './timers.service.js';
+import { VoiceController } from './voice.controller.js';
+import { VoiceService } from './voice.service.js';
 
 @Module({
   imports: [PrismaModule, DevicesModule, TelemetryModule],
@@ -18,18 +20,21 @@ import { TimersService } from './timers.service.js';
     SchedulesController,
     ScenesController,
     TimersController,
+    VoiceController,
   ],
   providers: [
     AutomationsService,
     SchedulesService,
     ScenesService,
     TimersService,
+    VoiceService,
   ],
   exports: [
     AutomationsService,
     SchedulesService,
     ScenesService,
     TimersService,
+    VoiceService,
   ],
 })
 export class AutomationsModule {}

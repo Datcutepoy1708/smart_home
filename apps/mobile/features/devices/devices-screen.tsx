@@ -20,6 +20,7 @@ import { styles as s } from "../../shared/components/screen-styles";
 import ScreenHeader from "../../shared/components/screen-header";
 import { color, font, radius, spacing } from "../../shared/theme";
 import type { Device } from "./device-data";
+import { FloatingVoiceButton } from "../voice/floating-voice-button";
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -647,6 +648,14 @@ export default function DevicesScreen() {
           <Text style={font.caption}>Thêm thiết bị (Sprint 2)</Text>
         </View>
       </ScrollView>
+
+      {/* Floating Voice Assistant */}
+      {home ? (
+        <FloatingVoiceButton
+          householdId={home.id}
+          onCommandExecuted={refresh}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }
