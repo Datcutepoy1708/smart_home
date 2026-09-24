@@ -13,6 +13,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { useSession } from "../../core/session-provider";
 import ScreenHeader from "../../shared/components/screen-header";
 import { color, font, radius, spacing } from "../../shared/theme";
+import { formatRelativeVnTime } from "../../shared/date-utils";
 
 export interface ActivityItem {
   id: string;
@@ -38,21 +39,7 @@ function initials(name: string): string {
 }
 
 function formatRelativeTime(isoString: string): string {
-  const diff = Date.now() - new Date(isoString).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "Vừa xong";
-  if (mins < 60) return `${mins} phút trước`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs} giờ trước`;
-  const days = Math.floor(hrs / 24);
-  if (days === 1) return "Hôm qua";
-  if (days < 7) return `${days} ngày trước`;
-  return new Date(isoString).toLocaleDateString("vi-VN", {
-    day: "2-digit",
-    month: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return formatRelativeVnTime(isoString);
 }
 
 type FilterKey = "all" | "command" | "automation" | "alert";

@@ -82,4 +82,29 @@ describe('SchedulesService', () => {
       CommandSource.SCHEDULE,
     );
   });
+
+  it('correctly calculates Vietnam (UTC+7) time parts and nextRunAt', () => {
+    // 2026-09-24T23:30:00Z is 2026-09-25 06:30 AM in Vietnam (UTC+7)
+    const testUtc = new Date('2026-09-24T23:30:00.000Z');
+    const vnParts = service.getVietnamTimeParts(testUtc);
+
+    expect(vnParts.year).toBe(2026);
+    expect(vnParts.month).toBe(9);
+    expect(vnParts.day).toBe(25);
+    expect(vnParts.hour).toBe(6);
+    expect(vnParts.minute).toBe(30);
+    expect(vnParts.hhMm).toBe('06:30');
+    expect(vnParts.dayOfWeek).toBe(5); // Friday
+
+    // Schedule at 07:00 on weekdays/all days -> next run should be today at 07:00 VN (00:00 UTC)
+    const schedTime = new Date(Date.UTC(1970, 0, 1, 7, 0, 0));
+    const nextRun = service.computeNextRunAt(schedTime, [1, 2, 3, 4, 5, 6, 7], testUtc);
+    expect(nextRun).not.toBeNull();
+    expect(nextRun?.toISOString()).toBe('2026-09-25T00:00:00.000Z');
+
+    // From 07:30 VN, next 07:00 should roll over to tomorrow Sep 26 at 00:00 UTC
+    const pastUtc = new Date('2026-09-25T00:30:00.000Z'); // 07:30 VN
+    const nextDayRun = service.computeNextRunAt(schedTime, [1, 2, 3, 4, 5, 6, 7], pastUtc);
+    expect(nextDayRun?.toISOString()).toBe('2026-09-26T00:00:00.000Z');
+  });
 });

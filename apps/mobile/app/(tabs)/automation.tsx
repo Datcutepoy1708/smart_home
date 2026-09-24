@@ -15,6 +15,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import ScreenHeader from "../../shared/components/screen-header";
 import { useSession } from "../../core/session-provider";
 import { color, font, radius, spacing } from "../../shared/theme";
+import { formatVnDate } from "../../shared/date-utils";
 import {
   fetchRules,
   toggleRule,
@@ -625,7 +626,7 @@ export default function AutomationScreen() {
 
                       <View style={st.ruleFooter}>
                         <Text style={st.ruleDate}>
-                          Tạo ngày {new Date(rule.createdAt).toLocaleDateString("vi-VN")}
+                          Tạo ngày {formatVnDate(rule.createdAt)}
                         </Text>
                         <Pressable
                           hitSlop={8}

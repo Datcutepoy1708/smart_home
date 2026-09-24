@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { color, radius, spacing } from "../../shared/theme";
+import { formatVnDateTime } from "../../shared/date-utils";
 import type { Session } from "../../core/session";
 import {
   createInviteCode,
@@ -283,7 +284,9 @@ export function MembersManagementModal({
                 {/* Result Code Box */}
                 {inviteResult && (
                   <View style={styles.codeBox}>
-                    <Text style={styles.codeLabel}>MÃ MỜI 6 KÝ TỰ (HIỆU LỰC 24H):</Text>
+                    <Text style={styles.codeLabel}>
+                      MÃ MỜI 6 KÝ TỰ • HẠN DÙNG: {formatVnDateTime(inviteResult.expiresAt)}
+                    </Text>
                     <Text style={styles.codeText}>{inviteResult.code}</Text>
                     <Pressable
                       style={styles.copyBtn}
@@ -396,7 +399,7 @@ export function MembersManagementModal({
                       >
                         {m.isExpired
                           ? "Quyền truy cập đã hết hạn"
-                          : `Hạn quyền: ${new Date(m.expiresAt).toLocaleDateString("vi-VN")}`}
+                          : `Hạn quyền: ${formatVnDateTime(m.expiresAt)}`}
                       </Text>
                     </View>
                   )}

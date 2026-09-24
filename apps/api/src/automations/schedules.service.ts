@@ -56,6 +56,67 @@ export class SchedulesService implements OnModuleInit, OnModuleDestroy {
     return `${h}:${m}`;
   }
 
+  /**
+   * Helper: Get current time and calendar parts in Vietnam (Asia/Ho_Chi_Minh = UTC+7)
+   */
+  public getVietnamTimeParts(date: Date = new Date()): {
+    year: number;
+    month: number;
+    day: number;
+    hour: number;
+    minute: number;
+    second: number;
+    dayOfWeek: number;
+    hhMm: string;
+    dateKey: string;
+  } {
+    const vnEpoch = date.getTime() + 7 * 3600 * 1000;
+    const vn = new Date(vnEpoch);
+    const year = vn.getUTCFullYear();
+    const month = vn.getUTCMonth() + 1;
+    const day = vn.getUTCDate();
+    const hour = vn.getUTCHours();
+    const minute = vn.getUTCMinutes();
+    const second = vn.getUTCSeconds();
+    const jsDay = vn.getUTCDay();
+    const dayOfWeek = jsDay === 0 ? 7 : jsDay;
+    const hhMm = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+    const dateKey = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    return { year, month, day, hour, minute, second, dayOfWeek, hhMm, dateKey };
+  }
+
+  /**
+   * Compute the next execution timestamp in UTC for a schedule in Vietnam (UTC+7)
+   */
+  public computeNextRunAt(
+    timeOfDay: Date,
+    repeatDays: number[] = [1, 2, 3, 4, 5, 6, 7],
+    fromDate: Date = new Date(),
+  ): Date | null {
+    const targetH = timeOfDay.getUTCHours();
+    const targetM = timeOfDay.getUTCMinutes();
+
+    for (let offset = 0; offset <= 8; offset++) {
+      const vnDate = new Date(
+        fromDate.getTime() + 7 * 3600 * 1000 + offset * 24 * 3600 * 1000,
+      );
+      const y = vnDate.getUTCFullYear();
+      const m = vnDate.getUTCMonth();
+      const d = vnDate.getUTCDate();
+      const candidateUtc = new Date(
+        Date.UTC(y, m, d, targetH - 7, targetM, 0, 0),
+      );
+      if (candidateUtc.getTime() <= fromDate.getTime()) continue;
+
+      const jsDay = vnDate.getUTCDay();
+      const vnDay = jsDay === 0 ? 7 : jsDay;
+      if (repeatDays.length > 0 && !repeatDays.includes(vnDay)) continue;
+
+      return candidateUtc;
+    }
+    return null;
+  }
+
   private async assertMembership(userId: string, householdId: string) {
     const now = new Date();
     const membership = await this.prisma.householdMember.findFirst({
@@ -188,6 +249,8 @@ export class SchedulesService implements OnModuleInit, OnModuleDestroy {
         action: actionData.action,
         params: actionData.params ?? {},
         repeatDays: s.repeatDays,
+        timezone: s.timezone,
+        nextRunAt: s.nextRunAt?.toISOString() ?? null,
         isActive: s.isActive,
         createdAt: s.createdAt,
       };
@@ -224,14 +287,21 @@ export class SchedulesService implements OnModuleInit, OnModuleDestroy {
       params: dto.params,
     };
 
+    const timeOfDay = this.parseTimeOfDay(dto.time);
+    const repeatDays = dto.repeatDays ?? [1, 2, 3, 4, 5, 6, 7];
+    const isActive = dto.isActive ?? true;
+    const nextRunAt = isActive ? this.computeNextRunAt(timeOfDay, repeatDays) : null;
+
     const schedule = await this.prisma.schedule.create({
       data: {
         householdId,
         deviceId: dto.deviceId,
         action: actionData as unknown as Prisma.InputJsonValue,
-        timeOfDay: this.parseTimeOfDay(dto.time),
-        repeatDays: dto.repeatDays ?? [1, 2, 3, 4, 5, 6, 7],
-        isActive: dto.isActive ?? true,
+        timeOfDay,
+        repeatDays,
+        timezone: 'Asia/Ho_Chi_Minh',
+        nextRunAt,
+        isActive,
         createdBy: userId,
       },
       include: {
@@ -253,6 +323,8 @@ export class SchedulesService implements OnModuleInit, OnModuleDestroy {
       action: actionData.action,
       params: actionData.params ?? {},
       repeatDays: schedule.repeatDays,
+      timezone: schedule.timezone,
+      nextRunAt: schedule.nextRunAt?.toISOString() ?? null,
       isActive: schedule.isActive,
       createdAt: schedule.createdAt,
     };
@@ -282,18 +354,29 @@ export class SchedulesService implements OnModuleInit, OnModuleDestroy {
       params: dto.params !== undefined ? dto.params : existingAction.params,
     };
 
+    const updatedTime =
+      dto.time !== undefined ? this.parseTimeOfDay(dto.time) : existing.timeOfDay;
+    const updatedRepeats =
+      dto.repeatDays !== undefined ? dto.repeatDays : existing.repeatDays;
+    const nextIsActive =
+      dto.isActive !== undefined ? dto.isActive : existing.isActive;
+    const nextRunAt = nextIsActive
+      ? this.computeNextRunAt(updatedTime, updatedRepeats)
+      : null;
+
     const schedule = await this.prisma.schedule.update({
       where: { id: scheduleId },
       data: {
         ...(dto.deviceId !== undefined ? { deviceId: dto.deviceId } : {}),
-        ...(dto.time !== undefined
-          ? { timeOfDay: this.parseTimeOfDay(dto.time) }
-          : {}),
-        ...(dto.action !== undefined || dto.params !== undefined || dto.name !== undefined
+        ...(dto.time !== undefined ? { timeOfDay: updatedTime } : {}),
+        ...(dto.action !== undefined ||
+        dto.params !== undefined ||
+        dto.name !== undefined
           ? { action: updatedAction as unknown as Prisma.InputJsonValue }
           : {}),
         ...(dto.repeatDays !== undefined ? { repeatDays: dto.repeatDays } : {}),
         ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
+        nextRunAt,
       },
       include: {
         device: {
@@ -314,6 +397,8 @@ export class SchedulesService implements OnModuleInit, OnModuleDestroy {
       action: updatedAction.action,
       params: updatedAction.params ?? {},
       repeatDays: schedule.repeatDays,
+      timezone: schedule.timezone,
+      nextRunAt: schedule.nextRunAt?.toISOString() ?? null,
       isActive: schedule.isActive,
       createdAt: schedule.createdAt,
     };
@@ -366,23 +451,7 @@ export class SchedulesService implements OnModuleInit, OnModuleDestroy {
    */
   async checkAndRunSchedules() {
     const now = new Date();
-
-    // Determine current hour & minute in Vietnam timezone (UTC+7)
-    const vnTimeStr = now.toLocaleTimeString('en-GB', {
-      timeZone: 'Asia/Ho_Chi_Minh',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    });
-    const currentHHmm = vnTimeStr;
-
-    // Day of week: 1 (Mon) to 7 (Sun)
-    const vnDate = new Date(
-      now.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }),
-    );
-    const jsDay = vnDate.getDay();
-    const currentDay = jsDay === 0 ? 7 : jsDay;
-    const dateKey = `${vnDate.getFullYear()}-${String(vnDate.getMonth() + 1).padStart(2, '0')}-${String(vnDate.getDate()).padStart(2, '0')}`;
+    const { hhMm: currentHHmm, dayOfWeek: currentDay, dateKey } = this.getVietnamTimeParts(now);
 
     // Clean up executed keys older than current minute
     const currentMinutePrefix = `${dateKey}:${currentHHmm}`;
@@ -431,11 +500,21 @@ export class SchedulesService implements OnModuleInit, OnModuleDestroy {
           CommandSource.SCHEDULE,
         );
 
-        // If one-time schedule, disable it after running
+        // If one-time schedule, disable it; otherwise calculate next occurrence
         if (repeats.length === 0) {
           await this.prisma.schedule.update({
             where: { id: schedule.id },
-            data: { isActive: false },
+            data: { isActive: false, nextRunAt: null },
+          });
+        } else {
+          const nextRun = this.computeNextRunAt(
+            schedule.timeOfDay,
+            schedule.repeatDays,
+            new Date(),
+          );
+          await this.prisma.schedule.update({
+            where: { id: schedule.id },
+            data: { nextRunAt: nextRun },
           });
         }
       } catch (cmdError) {

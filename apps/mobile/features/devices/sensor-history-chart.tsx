@@ -10,6 +10,7 @@ import {
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useSession } from "../../core/session-provider";
 import { color, font, radius, spacing } from "../../shared/theme";
+import { formatVnDateTime, formatVnTime } from "../../shared/date-utils";
 
 export interface SensorReadingPoint {
   id: string;
@@ -89,11 +90,7 @@ export function SensorHistoryChart({
         15,
         Math.min(100, Math.round(((r.value - minVal) / span) * 85 + 15))
       );
-      const d = new Date(r.recordedAt);
-      const timeLabel = `${d.getHours().toString().padStart(2, "0")}:${d
-        .getMinutes()
-        .toString()
-        .padStart(2, "0")}`;
+      const timeLabel = formatVnTime(r.recordedAt);
       return {
         ...r,
         heightPercent,
@@ -238,12 +235,7 @@ export function SensorHistoryChart({
         <View style={ch.tooltipBanner}>
           <Ionicons name="time-outline" size={14} color={color.textSecondary} />
           <Text style={ch.tooltipTime}>
-            {new Date(selectedPoint.recordedAt).toLocaleString("vi-VN", {
-              hour: "2-digit",
-              minute: "2-digit",
-              day: "2-digit",
-              month: "2-digit",
-            })}
+            {formatVnDateTime(selectedPoint.recordedAt)}
           </Text>
           <Text style={ch.tooltipDivider}>•</Text>
           <Text style={[ch.tooltipValue, { color: themeColor }]}>
