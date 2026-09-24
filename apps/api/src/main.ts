@@ -25,8 +25,9 @@ async function bootstrap() {
 
   app.setGlobalPrefix('api/v1');
   app.use(helmet());
+  const corsOrigin = process.env.CORS_ORIGIN;
   app.enableCors({
-    origin: process.env.CORS_ORIGIN?.split(',') ?? false,
+    origin: !corsOrigin || corsOrigin === '*' ? true : corsOrigin.split(','),
     credentials: true,
   });
   app.useGlobalPipes(
