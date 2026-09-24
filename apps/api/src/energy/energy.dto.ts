@@ -54,6 +54,11 @@ export interface DeviceEnergyBreakdownResponseDto {
   totalCostVnd: number;
 }
 
+import { IsNumber, Max, Min } from 'class-validator';
+
 export class UpdateDevicePowerDto {
+  @IsNumber()
+  @Min(1)
+  @Max(5000)
   wattage!: number;
 }

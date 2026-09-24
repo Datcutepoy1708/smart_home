@@ -38,6 +38,20 @@ export async function requestJson(
       },
     });
     if (!response.ok) {
+      let serverMessage: string | null = null;
+      try {
+        const errorData = (await response.json()) as any;
+        if (errorData) {
+          if (typeof errorData.message === "string") {
+            serverMessage = errorData.message;
+          } else if (Array.isArray(errorData.message) && errorData.message.length > 0) {
+            serverMessage = errorData.message.join(", ");
+          }
+        }
+      } catch {
+        /* ignore */
+      }
+
       const messages: Record<number, string> = {
         400: "Check your details and try again.",
         401: "Your session or sign-in details are invalid.",
@@ -46,7 +60,7 @@ export async function requestJson(
         429: "Too many attempts. Please wait a minute.",
       };
       throw new ApiError(
-        messages[response.status] ?? "Server unavailable. Please try again.",
+        serverMessage || messages[response.status] || "Server unavailable. Please try again.",
         response.status,
       );
     }
