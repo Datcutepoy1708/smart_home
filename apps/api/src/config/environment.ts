@@ -71,7 +71,11 @@ export function validateEnvironment(environment: Environment): Environment {
     }
     if (!['mqtt:', 'mqtts:'].includes(url.protocol))
       throw new Error('MQTT_URL must use MQTT');
-    if (values.NODE_ENV === 'production' && url.protocol !== 'mqtts:')
+    if (
+      values.NODE_ENV === 'production' &&
+      values.ENFORCE_MQTT_TLS === 'true' &&
+      url.protocol !== 'mqtts:'
+    )
       throw new Error('MQTT_URL must use TLS in production');
   }
   if (values.DATABASE_URL) {
