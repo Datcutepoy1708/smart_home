@@ -25,7 +25,7 @@ export function IconSymbol({
           width: size,
           height: size,
         },
-        style,
+        style as any,
       ]}
     />
   );

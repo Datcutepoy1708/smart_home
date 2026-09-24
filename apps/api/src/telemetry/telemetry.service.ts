@@ -4,12 +4,23 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { parseTelemetry } from './telemetry-payload.js';
 
+export type TelemetryHook = (
+  householdId: string,
+  readings: Array<{ metric: string; value: number }>,
+) => void;
+
 @Injectable()
 export class TelemetryService {
+  private readonly hooks: TelemetryHook[] = [];
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
   ) {}
+
+  onTelemetry(hook: TelemetryHook) {
+    this.hooks.push(hook);
+  }
   async ingest(topic: string, payload: Buffer) {
     const message = parseTelemetry(
       topic,
@@ -70,6 +81,19 @@ export class TelemetryService {
           timeout: Number(this.config.getOrThrow('DB_TRANSACTION_TIMEOUT_MS')),
         },
       );
+
+      // Evaluate active hooks (e.g. automations) with incoming temperature & humidity
+      for (const hook of this.hooks) {
+        try {
+          hook(message.householdId, [
+            { metric: 'temperature', value: message.data.temperature },
+            { metric: 'humidity', value: message.data.humidity },
+          ]);
+        } catch {
+          /* best effort */
+        }
+      }
+
       return 'accepted';
     } catch (error: unknown) {
       if (

@@ -12,6 +12,7 @@ The current project documents are:
 - `plan.MD`: product scope, sprint order, and implementation checklist.
 - `db.md`: reference PostgreSQL schema and data-model decisions.
 - `AGENTS.MD`: engineering rules and the required agent workflow.
+- `image/`: user-provided visual references for the mobile app (see Section 23).
 
 If these documents conflict, do not silently make a scope-changing decision. If
 the conflict is local and unambiguous, follow the locked stack in this file and
@@ -359,6 +360,7 @@ documentation together.
 
 ## 14. React Native Conventions
 
+- Follow the mandatory image-reference workflow in Section 23 for mobile UI work.
 - Screen components must not directly implement HTTP, socket, or FCM clients.
   Put integrations in testable services and hooks.
 - Use Expo Router for file-based navigation and typed route parameters.
@@ -532,6 +534,64 @@ When multiple approaches are valid, prefer them in this order:
 Never sacrifice the first three priorities to optimize the later ones early.
 ## 22. No icon
 - **No decorative icon/emoji badges or trust badges.** Do not add small colorful icon+text chip elements like "🚀 50K+ Products" or "🚚 Free Shipping" — these decorative trust-badge patterns (common in AI-generated hero sections) are visual clutter and must be removed or replaced with plain text if the content is worth keeping (e.g. plain text "50,000+ products in stock" with no icon/emoji in front of it).
-  - If a Stitch mockup includes these badges, treat it as reference for layout only — strip the icon/emoji and either drop the badge entirely or keep it as plain text, when implementing the real Angular component.
+  - If a Stitch mockup includes these badges, strip the decorative icon/emoji and either drop the badge entirely or keep its useful content as plain text in the React Native component. This exception applies only to decorative badges; preserve the rest of the reference design as required by Section 23.
   - This also applies to commit messages, PR descriptions, code comments, and log messages — no decorative emoji there either (e.g. `feat(product): ✨ add search 🔍` → `feat(product): add search`).
   - **Functional UI icons are still allowed where they materially aid usability** — e.g. a cart icon with item-count badge in the header (no room for text label there), a password show/hide toggle icon, a search magnifying-glass inside a search input, a notification bell in the admin topbar, a dark-mode toggle, an "opens in new tab" external-link glyph. Keep these minimal, single-color/monochrome (matching `--on-surface-variant` from the design tokens), and consistent with the design system — not colorful, not multi-color, not emoji-style. If in doubt whether an icon is "functional" or "decorative," ask before adding it.
+
+## 23. Mobile UI Must Follow the Reference Images
+
+The user requires the actual Expo/React Native app to match the designs in
+`image/s1.png`, `image/s2.png`, `image/s3.png`, `image/s4.png`, and `image/s5.png`.
+These images are the visual source of truth. The existing functional Sprint 1
+screens and Expo starter components are not the approved visual design.
+
+### Before Editing UI
+
+1. Open and visually inspect all five reference images with an image viewer.
+   Reading filenames or a text description is not sufficient. If an image cannot
+   be opened, report the missing reference instead of inventing its design.
+2. Map the relevant reference screens to the existing Expo routes and feature
+   components. Identify shared colors, typography, spacing, surfaces, borders,
+   corner radii, controls, imagery, and navigation patterns from the images.
+3. Read the existing screens, shared styles, hooks, and session/network services.
+   State which screens will change and which images guide those changes.
+
+### Implementation Rules
+
+- Reproduce the reference layout, visual hierarchy, palette, typography, spacing,
+  component proportions, imagery, and navigation styling as closely as practical.
+  Do not substitute an independently designed dashboard, generic form, website,
+  or Expo starter screen merely because it provides the same functionality.
+- Implement real, interactive React Native components. Do not display a full
+  reference screenshot as the screen or overlay invisible controls on it.
+- Put shared design values and reusable UI in the existing mobile shared layer.
+  Screens without a direct reference must use the same visual language.
+- Preserve working authentication, Secure Store session restoration, household
+  authorization, API integration, telemetry, pagination, and logout behavior.
+  A visual redesign must not replace real data with hard-coded mock readings.
+- Keep loading, empty, validation, error, offline, and pending states functional
+  and style them consistently with the reference screens.
+- Reference images define appearance, not permission to expand product scope.
+  Follow the active sprint in `plan.MD`; identify out-of-scope reference controls
+  and report necessary adaptations. Never make an unavailable action appear to
+  work or silently implement deferred backend features to fill a mockup.
+- Respect safe areas, keyboard avoidance, readable text, accessible touch targets,
+  and different phone sizes. Explain necessary accessibility/platform adjustments
+  or Section 22 decorative-badge exceptions instead of silently redesigning.
+- Work on the actual routed screens under `apps/mobile/app` and their feature
+  components. Do not mistake unused Expo template files for the active app UI.
+
+### Visual Acceptance
+
+- Capture the implemented screens on an emulator or physical device and compare
+  them with the corresponding reference images at comparable viewport sizes.
+  Check alignment, spacing, colors, typography, navigation, scrolling, keyboard
+  behavior, and text overflow; correct visible mismatches before claiming a match.
+- Run relevant mobile tests, lint, and typecheck, and smoke-test the preserved
+  user flows after the redesign. Passing functional tests or exporting a bundle
+  alone does not establish visual fidelity.
+- If screen capture or native execution is unavailable, explicitly report visual
+  verification as pending. Never claim the UI matches images without viewing both.
+- Report the changed screens, the reference image used for each, verification
+  performed, and any remaining deviations. Functional sprint acceptance and
+  acceptance of the visual redesign are separate; do not conflate them.

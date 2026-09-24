@@ -128,6 +128,78 @@ export class Session {
       });
     }
   }
+  async post(path: string, body?: unknown) {
+    if (this.signingOut) throw new ApiError("Signing out.", 401);
+    const token = this.accessToken;
+    const options: RequestInit = {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token ?? ""}`,
+        "Content-Type": "application/json",
+      },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    };
+    try {
+      return await this.request(path, options);
+    } catch (error: unknown) {
+      if (!(error instanceof ApiError) || error.status !== 401) throw error;
+      if (token === this.accessToken) await this.refresh();
+      return this.request(path, {
+        ...options,
+        headers: {
+          Authorization: `Bearer ${this.accessToken ?? ""}`,
+          "Content-Type": "application/json",
+        },
+      });
+    }
+  }
+  async patch(path: string, body?: unknown) {
+    if (this.signingOut) throw new ApiError("Signing out.", 401);
+    const token = this.accessToken;
+    const options: RequestInit = {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${token ?? ""}`,
+        "Content-Type": "application/json",
+      },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    };
+    try {
+      return await this.request(path, options);
+    } catch (error: unknown) {
+      if (!(error instanceof ApiError) || error.status !== 401) throw error;
+      if (token === this.accessToken) await this.refresh();
+      return this.request(path, {
+        ...options,
+        headers: {
+          Authorization: `Bearer ${this.accessToken ?? ""}`,
+          "Content-Type": "application/json",
+        },
+      });
+    }
+  }
+  async delete(path: string) {
+    if (this.signingOut) throw new ApiError("Signing out.", 401);
+    const token = this.accessToken;
+    const options: RequestInit = {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token ?? ""}`,
+      },
+    };
+    try {
+      return await this.request(path, options);
+    } catch (error: unknown) {
+      if (!(error instanceof ApiError) || error.status !== 401) throw error;
+      if (token === this.accessToken) await this.refresh();
+      return this.request(path, {
+        ...options,
+        headers: {
+          Authorization: `Bearer ${this.accessToken ?? ""}`,
+        },
+      });
+    }
+  }
   async logout() {
     this.signingOut = true;
     try {

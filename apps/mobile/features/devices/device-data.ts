@@ -6,6 +6,12 @@ export interface Device {
   room: string | null;
   deviceType: string;
   isOnline: boolean;
+  state?: {
+    power?: 'on' | 'off';
+    position?: 'open' | 'closed';
+    angle?: number;
+    [key: string]: unknown;
+  };
   lastSeenAt: string | null;
   readings: {
     metric: string;
@@ -29,6 +35,7 @@ export function parseDevices(value: unknown): {
         typeof d.name === "string" &&
         typeof d.deviceType === "string" &&
         typeof d.isOnline === "boolean" &&
+        (d.state === undefined || isRecord(d.state)) &&
         (d.room === null || typeof d.room === "string") &&
         (d.lastSeenAt === null ||
           (typeof d.lastSeenAt === "string" &&

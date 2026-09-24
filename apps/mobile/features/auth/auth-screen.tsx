@@ -47,7 +47,6 @@ export default function AuthScreen() {
           ? { name: name.trim(), householdName: householdName.trim() }
           : {}),
       });
-      router.replace("/(tabs)");
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Unable to sign in.");
     } finally {

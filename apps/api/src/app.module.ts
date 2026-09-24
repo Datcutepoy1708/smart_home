@@ -5,6 +5,7 @@ import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { ApiExceptionFilter } from './common/api-exception.filter.js';
 import { DevicesModule } from './devices/devices.module.js';
 import { TelemetryModule } from './telemetry/telemetry.module.js';
+import { AutomationsModule } from './automations/automations.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
@@ -24,6 +25,7 @@ import { PrismaModule } from './prisma/prisma.module.js';
     AuthModule,
     DevicesModule,
     TelemetryModule,
+    AutomationsModule,
   ],
   controllers: [AppController],
   providers: [

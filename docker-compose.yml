@@ -22,8 +22,8 @@ services:
     container_name: smart-home-mosquitto
     restart: unless-stopped
     ports:
-      - "127.0.0.1:1883:1883"
-      - "127.0.0.1:9001:9001"
+      - "0.0.0.0:1883:1883"   # LAN-accessible so ESP32 devices can connect
+      - "127.0.0.1:9001:9001"  # WebSocket kept local-only
     volumes:
       - ./infrastructure/mqtt/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
       - mosquitto-data:/mosquitto/data

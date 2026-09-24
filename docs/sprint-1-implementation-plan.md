@@ -284,3 +284,82 @@ Phase 0 verification (2026-09-13):
   work. The existing E2E test covers API health only.
 - No Git metadata was available in this workspace, so Git diff/status could not
   be used to verify changes.
+
+## 8. Visual Redesign — AGENTS.MD Section 23 (2026-09-15)
+
+### Scope
+
+Section 23 was added to `AGENTS.MD` establishing `image/s1.png` – `image/s5.png`
+as the visual source of truth for the mobile app. A full UI redesign of the Expo
+app was completed to match these references while preserving all Sprint 1
+functional acceptance criteria.
+
+### Reference-to-screen mapping
+
+| Ảnh | Màn hình | File |
+|---|---|---|
+| `s1.png` | Cài đặt (Settings) | `features/auth/settings-screen.tsx` |
+| `s2.png` | Hoạt động / Emergency Alert | `features/activity/activity-screen.tsx` |
+| `s3.png` | Modal chọn ngôi nhà | `app/household-modal.tsx` |
+| `s4.png` | Chi tiết thiết bị / cảm biến | `features/devices/device-detail-screen.tsx` |
+| `s5.png` | Danh sách thiết bị | `features/devices/devices-screen.tsx` |
+
+### New and modified files
+
+- **[NEW]** `shared/theme.ts` — design tokens (colors, spacing, radius, typography)
+- **[MOD]** `shared/components/screen-styles.ts` — expanded style primitives
+- **[NEW]** `shared/components/screen-header.tsx` — shared header component
+- **[MOD]** `shared/components/mobile-ui.tsx` — updated color token references
+- **[MOD]** `app/(tabs)/_layout.tsx` — 5 tabs matching s1/s5 navigation
+- **[NEW]** `app/(tabs)/activity.tsx` — activity tab route
+- **[NEW]** `app/(tabs)/automation.tsx` — placeholder tab (Sprint 2+)
+- **[MOD]** `app/_layout.tsx` — added `household-modal` (modal) and `device/[id]` stack routes
+- **[NEW]** `app/household-modal.tsx` — per s3.png
+- **[NEW]** `app/device/[id].tsx` — dynamic device detail route
+- **[MOD]** `features/auth/settings-screen.tsx` — full redesign per s1.png
+- **[MOD]** `features/devices/devices-screen.tsx` — full redesign per s5.png
+- **[NEW]** `features/devices/device-detail-screen.tsx` — per s4.png
+- **[NEW]** `features/activity/activity-screen.tsx` — per s2.png (empty state)
+- **[MOD]** `test/devices-screen.spec.ts` — updated mocks and Vietnamese assertions
+
+### Data fidelity policy
+
+No mock data was introduced. Each deferred feature is explicitly hidden
+(absent from render) or shown disabled with a clear label. See the per-screen
+breakdown in `implementation_plan.md` for the exact list of what is real vs deferred.
+
+Key examples:
+- Battery %, response time, trend indicators, 24h stats: **absent**
+- "Xác thực cấp cao", Telegram status, 2FA state: **absent**
+- App version: reads `Constants.expoConfig?.version` (`0.1.0`) from `app.config.ts`
+- User name/email/role: real from `session.identity`
+- Household list: real from `session.identity.households[]`
+- Sensor readings: real from `/households/:id/devices` API
+
+### Automated verification (2026-09-15)
+
+- `npm run test`: **17 API + 9 mobile tests pass**
+- `npm run typecheck`: **clean (0 errors)**
+- `npm run lint`: **clean (0 errors)**
+
+### Visual verification
+
+**Status: pending emulator capture.**
+
+Required checks per screen (to be performed on Android emulator Pixel 9 / API 35):
+
+| Màn hình | Ảnh ref | Kiểm tra |
+|---|---|---|
+| Settings | `s1.png` | Avatar initials, name, email, role badge, household name, version `0.1.0`, logout works |
+| Activity | `s2.png` | Header layout, filter pills, clear empty state, no fake gas alerts |
+| Household modal | `s3.png` | Lists real `households[]`, radio indicator, disabled add/manage buttons |
+| Device detail | `s4.png` | Real temperature/humidity, online status, chart placeholder visible, no battery/response fields |
+| Devices list | `s5.png` | Search bar functional, room chips from real `device.room`, online/offline filter, pull-to-refresh |
+
+Additional checks for each screen: 360dp narrow viewport, soft keyboard occlusion,
+long name overflow (device name, household name), empty list state, network error state.
+
+Visual verification is reported as **pending** until emulator screenshots are captured
+and compared to the reference images. Functional Sprint 1 acceptance (Section 6 above)
+remains separately verified and complete.
+

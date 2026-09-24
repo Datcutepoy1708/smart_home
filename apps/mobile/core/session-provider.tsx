@@ -7,7 +7,7 @@ import {
 } from "react";
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
-import { Session } from "./session";
+import { Session, type Identity } from "./session";
 import { requestJson } from "./api-client";
 let webToken: string | null = null;
 const key = "smart-home-refresh";
@@ -33,16 +33,18 @@ const Context = createContext({
   loading: true,
   error: "",
   retry: () => {},
+  identity: null as Identity | null,
+  resetSession: async () => {},
 });
 export function SessionProvider({ children }: PropsWithChildren) {
-  const [, render] = useState(0);
+  const [identity, setIdentity] = useState<Identity | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     let active = true;
     session.onChange = () => {
-      if (active) render((n) => n + 1);
+      if (active) setIdentity(session.identity);
     };
     setLoading(true);
     setError("");
@@ -53,16 +55,36 @@ export function SessionProvider({ children }: PropsWithChildren) {
           setError("Unable to restore your session. Check your connection.");
       })
       .finally(() => {
-        if (active) setLoading(false);
+        if (active) {
+          setIdentity(session.identity);
+          setLoading(false);
+        }
       });
     return () => {
       active = false;
       session.onChange = () => {};
     };
   }, [attempt]);
+
+  const resetSession = async () => {
+    try {
+      await session.logout();
+    } catch {
+      /* ignore */
+    }
+    setError("");
+  };
+
   return (
     <Context.Provider
-      value={{ session, loading, error, retry: () => setAttempt((n) => n + 1) }}
+      value={{
+        session,
+        loading,
+        error,
+        retry: () => setAttempt((n) => n + 1),
+        identity,
+        resetSession,
+      }}
     >
       {children}
     </Context.Provider>

@@ -219,13 +219,124 @@ describe.skipIf(process.env.RUN_DB_TESTS !== '1')(
         .auth(auth.tokens.accessToken, { type: 'bearer' })
         .expect(200);
       expect(offline.body.items[0].isOnline).toBe(false);
-      await request(server)
-        .get(`/api/v1/households/${homeId}/devices?limit=1000`)
+      const deviceDetail = await request(server)
+        .get(`/api/v1/households/${homeId}/devices/${deviceId}`)
         .auth(auth.tokens.accessToken, { type: 'bearer' })
-        .expect(400);
+        .expect(200);
+      expect(deviceDetail.body).toMatchObject({
+        id: deviceId,
+        name: 'Test Sensor',
+        deviceType: 'dht_sensor',
+        isOnline: false,
+      });
+      expect(deviceDetail.body.readings).toHaveLength(2);
+
       await request(server)
-        .get(`/api/v1/households/${homeId}/devices`)
-        .expect(401);
+        .get(`/api/v1/households/${homeId}/devices/${randomUUID()}`)
+        .auth(auth.tokens.accessToken, { type: 'bearer' })
+        .expect(404);
+
+      await request(server)
+        .get(`/api/v1/households/${other.id}/devices/${deviceId}`)
+        .auth(auth.tokens.accessToken, { type: 'bearer' })
+        .expect(403);
+
+      // Sprint 2: Device control command tests
+      // 1. Non-controllable device rejected with 400
+      await request(server)
+        .post(`/api/v1/households/${homeId}/devices/${deviceId}/commands`)
+        .auth(auth.tokens.accessToken, { type: 'bearer' })
+        .send({ action: 'turn_on' })
+        .expect(400);
+
+      // 2. Offline LIGHT device rejected with 409
+      const offlineLightId = randomUUID();
+      await db.device.create({
+        data: {
+          id: offlineLightId,
+          householdId: homeId,
+          name: 'Offline Light',
+          deviceUid: offlineLightId,
+          mqttTopic: `home/${homeId}/device/${offlineLightId}`,
+          authTokenHash: 'local-test-unused',
+          deviceType: 'LIGHT',
+          isOnline: false,
+          lastSeenAt: new Date(0),
+        },
+      });
+      await request(server)
+        .post(`/api/v1/households/${homeId}/devices/${offlineLightId}/commands`)
+        .auth(auth.tokens.accessToken, { type: 'bearer' })
+        .send({ action: 'turn_on' })
+        .expect(409);
+
+      // 2. Create online LIGHT device
+      const lightId = randomUUID();
+      await db.device.create({
+        data: {
+          id: lightId,
+          householdId: homeId,
+          name: 'Living Room Light',
+          deviceUid: lightId,
+          mqttTopic: `home/${homeId}/device/${lightId}`,
+          authTokenHash: 'local-test-unused',
+          deviceType: 'LIGHT',
+          isOnline: true,
+          lastSeenAt: new Date(),
+        },
+      });
+
+      // 3. Listen on MQTT for command and reply with ACK
+      const config = app.get(ConfigService);
+      const brokerUrl = config.getOrThrow<string>('MQTT_URL');
+      const testMqtt = await connectAsync(brokerUrl);
+      const cmdTopic = `home/${homeId}/device/${lightId}/command`;
+      const ackTopic = `home/${homeId}/device/${lightId}/state`;
+      await testMqtt.subscribeAsync(cmdTopic);
+
+      testMqtt.on('message', async (topic, msg) => {
+        if (topic === cmdTopic) {
+          const parsed = JSON.parse(msg.toString());
+          await testMqtt.publishAsync(
+            ackTopic,
+            JSON.stringify({
+              schemaVersion: 1,
+              commandId: parsed.commandId,
+              deviceId: lightId,
+              status: 'success',
+              state: { power: 'on' },
+              timestamp: new Date().toISOString(),
+            }),
+            { qos: 1 },
+          );
+        }
+      });
+
+      // 4. Send command turn_on
+      const cmdRes = await request(server)
+        .post(`/api/v1/households/${homeId}/devices/${lightId}/commands`)
+        .auth(auth.tokens.accessToken, { type: 'bearer' })
+        .send({ action: 'turn_on' })
+        .expect(201);
+
+      expect(cmdRes.body).toMatchObject({
+        status: 'ACKNOWLEDGED',
+        state: { power: 'on' },
+      });
+
+      // 5. Verify ActionLog and DeviceCommand in DB
+      const actionLog = await db.actionLog.findFirst({
+        where: { deviceId: lightId },
+      });
+      expect(actionLog).not.toBeNull();
+      expect(actionLog?.action).toBe('turn_on');
+
+      const cmdInDb = await db.deviceCommand.findUnique({
+        where: { id: cmdRes.body.commandId },
+      });
+      expect(cmdInDb?.status).toBe('ACKNOWLEDGED');
+
+      await testMqtt.endAsync();
     }, 30000);
   },
 );

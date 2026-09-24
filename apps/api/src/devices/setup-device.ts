@@ -17,6 +17,9 @@ try {
     throw new Error('Local development only');
   const email = process.argv[2]?.trim().toLowerCase();
   if (!email) throw new Error('Supply the registered owner email');
+  const kind = process.argv[3] ?? 'dht';
+  if (kind !== 'dht' && kind !== 'light' && kind !== 'fan' && kind !== 'door')
+    throw new Error('Device type must be dht, light, fan or door');
   const db = app.get(PrismaService);
   const membership = await db.householdMember.findFirst({
     where: {
@@ -27,7 +30,7 @@ try {
     orderBy: { joinedAt: 'asc' },
   });
   if (!membership) throw new Error('Registered owner required');
-  const deviceUid = `local-dht-${membership.householdId}`;
+  const deviceUid = `local-${kind}-${membership.householdId}`;
   const id = randomUUID();
   const device = await db.device.upsert({
     where: { deviceUid },
@@ -36,9 +39,9 @@ try {
       id,
       householdId: membership.householdId,
       deviceUid,
-      name: 'Living room sensor',
+      name: kind === 'dht' ? 'Living room sensor' : `Living room ${kind}`,
       room: 'Living room',
-      deviceType: 'DHT_SENSOR',
+      deviceType: kind === 'dht' ? 'DHT_SENSOR' : kind === 'light' ? 'LIGHT' : kind === 'door' ? 'DOOR_SERVO' : 'FAN',
       mqttTopic: `${config.getOrThrow<string>('MQTT_TOPIC_ROOT')}/${membership.householdId}/device/${id}`,
       authTokenHash: 'unused-local-anonymous-broker',
     },

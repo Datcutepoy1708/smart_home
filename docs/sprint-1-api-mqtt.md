@@ -85,3 +85,22 @@ Web preview keeps tokens in memory only and requires login after a page reload.
 The device view refreshes on focus and pull-to-refresh, with cursor load-more.
 Cached readings are labelled when a refresh fails. WebSocket updates are deferred
 until the basic REST flow is verified, as allowed by the Sprint 1 plan.
+
+## ESP32 hardware extension (2026-09-16)
+
+Firmware and hardware prerequisites are documented in
+`firmware/esp32-smart-home/README.md`. The optional third argument of the local
+device setup CLI is now `dht`, `light`, or `fan` (default `dht`).
+
+LIGHT/FAN heartbeat topic: `home/{householdId}/device/{deviceId}/availability`.
+Payload: `{ "schemaVersion": 1, "deviceId": "uuid", "online": true }`.
+Only these three fields are accepted. Topic UUIDs and payload identity are
+validated before a household-and-device-scoped database update. Retained
+messages are ignored; online freshness uses server receive time. Offline
+messages preserve lastSeenAt and set isOnline=false. List/detail and commands
+check both this flag and freshness. DHT keeps its existing telemetry contract.
+The device responses also include lastSeenAt, as required by the mobile parser.
+
+No LAN listener, firewall rule, credentials, or real hardware was configured.
+The current loopback-only broker remains unchanged. Hardware compilation and
+acceptance remain pending; backend checks do not prove ESP32 behavior.
