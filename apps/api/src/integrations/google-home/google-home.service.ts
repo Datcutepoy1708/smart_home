@@ -300,10 +300,15 @@ export class GoogleHomeService {
             this.logger.error(
               `Execute command failed for device ${dev.id}: ${String(err)}`,
             );
+            const errMsg = String(err).toLowerCase();
+            const errorCode =
+              errMsg.includes('ngoại tuyến') || errMsg.includes('offline')
+                ? 'deviceOffline'
+                : 'actionNotAvailable';
             results.push({
               ids: [dev.id],
               status: 'ERROR',
-              errorCode: 'actionNotAvailable',
+              errorCode,
             });
           }
         }
