@@ -13,6 +13,7 @@ import { validateEnvironment } from './config/environment.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 
 import { EnergyModule } from './energy/energy.module.js';
+import { GoogleHomeModule } from './integrations/google-home/google-home.module.js';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { EnergyModule } from './energy/energy.module.js';
     TelemetryModule,
     AutomationsModule,
     EnergyModule,
+    GoogleHomeModule,
   ],
   controllers: [AppController],
   providers: [

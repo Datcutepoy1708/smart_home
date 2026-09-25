@@ -24,7 +24,11 @@ async function bootstrap() {
   });
 
   app.setGlobalPrefix('api/v1');
-  app.use(helmet());
+  app.use(
+    helmet({
+      contentSecurityPolicy: false,
+    }),
+  );
   const corsOrigin = process.env.CORS_ORIGIN;
   app.enableCors({
     origin: !corsOrigin || corsOrigin === '*' ? true : corsOrigin.split(','),
