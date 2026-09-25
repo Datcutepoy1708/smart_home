@@ -13,7 +13,11 @@ export class DevicesService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
   ) {}
-  async list(userId: string, householdId: string, query: DeviceQueryDto) {
+  async list(
+    userId: string,
+    householdId: string,
+    query: DeviceQueryDto,
+  ): Promise<{ items: any[]; nextCursor: string | null }> {
     const now = new Date();
     const membership = await this.prisma.householdMember.findFirst({
       where: {
@@ -24,7 +28,7 @@ export class DevicesService {
       },
     });
     if (!membership) throw new ForbiddenException('Household access denied');
-    const devices = await this.prisma.device.findMany({
+    let devices = await this.prisma.device.findMany({
       where: {
         householdId,
         ...(query.cursor ? { id: { gt: query.cursor } } : {}),
@@ -48,6 +52,72 @@ export class DevicesService {
         },
       },
     });
+
+    if (devices.length === 0 && !query.cursor) {
+      const root = this.config.get<string>('MQTT_TOPIC_ROOT') ?? 'home';
+      const defaultDevices = [
+        {
+          id: '7534c273-aad6-4649-8f3a-f6eb95d6df4f',
+          householdId,
+          deviceUid: `esp32-sensor-${householdId.slice(0, 8)}`,
+          name: 'Cảm biến phòng khách',
+          deviceType: 'DHT_SENSOR' as const,
+          room: 'Phòng khách',
+          mqttTopic: `${root}/${householdId}/device/7534c273-aad6-4649-8f3a-f6eb95d6df4f`,
+          authTokenHash: 'default-cloud-token',
+        },
+        {
+          id: '7871f8e7-5ff1-462f-9dd2-893989bd88ed',
+          householdId,
+          deviceUid: `esp32-light-${householdId.slice(0, 8)}`,
+          name: 'Đèn phòng khách',
+          deviceType: 'LIGHT' as const,
+          room: 'Phòng khách',
+          mqttTopic: `${root}/${householdId}/device/7871f8e7-5ff1-462f-9dd2-893989bd88ed`,
+          authTokenHash: 'default-cloud-token',
+        },
+        {
+          id: 'aa40a477-80f8-4f79-a27c-471904d398d4',
+          householdId,
+          deviceUid: `esp32-fan-${householdId.slice(0, 8)}`,
+          name: 'Quạt phòng khách',
+          deviceType: 'FAN' as const,
+          room: 'Phòng khách',
+          mqttTopic: `${root}/${householdId}/device/aa40a477-80f8-4f79-a27c-471904d398d4`,
+          authTokenHash: 'default-cloud-token',
+        },
+        {
+          id: '83b8db2d-0e79-4a6e-84af-ed594ce29025',
+          householdId,
+          deviceUid: `esp32-door-${householdId.slice(0, 8)}`,
+          name: 'Cửa chính',
+          deviceType: 'DOOR_SERVO' as const,
+          room: 'Phòng khách',
+          mqttTopic: `${root}/${householdId}/device/83b8db2d-0e79-4a6e-84af-ed594ce29025`,
+          authTokenHash: 'default-cloud-token',
+        },
+      ];
+
+      for (const d of defaultDevices) {
+        await this.prisma.device.upsert({
+          where: { deviceUid: d.deviceUid },
+          update: {},
+          create: {
+            ...d,
+            state: {
+              create: {
+                state:
+                  d.deviceType === 'DOOR_SERVO'
+                    ? { angle: 0, position: 'closed' }
+                    : { power: 'off' },
+              },
+            },
+          },
+        });
+      }
+
+      return this.list(userId, householdId, query);
+    }
     const items = devices.slice(0, query.limit).map((device) => ({
       id: device.id,
       name: device.name,
