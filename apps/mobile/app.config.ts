@@ -15,7 +15,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   android: {
     package: 'com.smarthome.mobile',
-    googleServicesFile: './google-services.json',
+    googleServicesFile: process.env.GOOGLE_SERVICES_JSON ?? './google-services.json',
     adaptiveIcon: {
       backgroundColor: '#07111F',
       foregroundImage: './assets/images/android-icon-foreground.png',
