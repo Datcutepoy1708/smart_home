@@ -258,12 +258,18 @@ export default function DeviceDetailScreen() {
               <DoorAngleControlCard device={device} onRefresh={load} />
             )}
 
+            {/* Cover (mái che) control card */}
+            {device.deviceType === "cover" && (
+              <CoverControlCard device={device} onRefresh={load} />
+            )}
+
             {/* Countdown auto-off / auto-close timer card */}
             {householdId &&
               (device.deviceType === "light" ||
                 device.deviceType === "fan" ||
                 device.deviceType === "door" ||
-                device.deviceType === "door_servo") && (
+                device.deviceType === "door_servo" ||
+                device.deviceType === "cover") && (
                 <CountdownTimerCard
                   session={session}
                   householdId={householdId}
@@ -457,6 +463,221 @@ function DevicePowerCard({
           />
         </View>
       </View>
+    </View>
+  );
+}
+
+// ── Cover Control Card ───────────────────────────────────────────────────────
+
+function CoverControlCard({
+  device,
+  onRefresh,
+}: {
+  device: Device;
+  onRefresh: () => void;
+}) {
+  const { session } = useSession();
+  const rawState = (device.state?.state as string) ?? "closed";
+  const rawMode = (device.state?.mode as string) ?? "auto";
+  const [coverState, setCoverState] = useState(rawState);
+  const [mode, setMode] = useState(rawMode);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!busy) {
+      if (typeof device.state?.state === "string") setCoverState(device.state.state);
+      if (typeof device.state?.mode === "string") setMode(device.state.mode);
+    }
+  }, [device.state?.state, device.state?.mode, busy]);
+
+  async function handleAction(action: "open_cover" | "close_cover" | "stop_cover") {
+    if (!device.isOnline || busy) return;
+    const householdId = session.identity?.households[0]?.id;
+    if (!householdId) return;
+    setBusy(true);
+    try {
+      await session.post(
+        `/households/${householdId}/devices/${device.id}/commands`,
+        { action },
+      );
+      setCoverState(action === "open_cover" ? "open" : action === "close_cover" ? "closed" : "stopped");
+      onRefresh();
+    } catch (e: unknown) {
+      Alert.alert(
+        "Lỗi điều khiển mái che",
+        e instanceof Error ? e.message : "Không thể gửi lệnh điều khiển tới mái che.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleToggleMode() {
+    if (!device.isOnline || busy) return;
+    const householdId = session.identity?.households[0]?.id;
+    if (!householdId) return;
+    const nextMode = mode === "auto" ? "manual" : "auto";
+    setBusy(true);
+    try {
+      await session.post(
+        `/households/${householdId}/devices/${device.id}/commands`,
+        { action: "set_mode", mode: nextMode },
+      );
+      setMode(nextMode);
+      onRefresh();
+    } catch (e: unknown) {
+      Alert.alert(
+        "Lỗi đổi chế độ",
+        e instanceof Error ? e.message : "Không thể chuyển chế độ điều khiển.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const stateLabel =
+    coverState === "open" ? "Đang mở" : coverState === "closed" ? "Đã đóng" : "Đã dừng";
+  const stateColor =
+    coverState === "open" ? color.primary : coverState === "stopped" ? color.warning ?? color.textSecondary : color.textSecondary;
+
+  return (
+    <View style={s.card}>
+      {/* Header */}
+      <View style={[s.row, { justifyContent: "space-between", marginBottom: spacing.sm }]}>
+        <View style={s.rowStart}>
+          <Ionicons name="umbrella-outline" size={22} color={color.primary} />
+          <View style={s.group}>
+            <Text style={font.titleSmall}>Điều khiển mái che</Text>
+            <Text style={[font.caption, { color: stateColor }]}>{stateLabel}</Text>
+          </View>
+        </View>
+        {/* Auto / Manual mode toggle */}
+        <Pressable
+          onPress={handleToggleMode}
+          disabled={!device.isOnline || busy}
+          accessibilityLabel={`Chế độ hiện tại: ${mode === "auto" ? "Tự động" : "Thủ công"}. Nhấn để đổi.`}
+          style={{
+            paddingHorizontal: spacing.sm,
+            paddingVertical: 4,
+            borderRadius: radius.full,
+            backgroundColor: mode === "auto" ? color.primary : color.surfaceVariant,
+          }}
+        >
+          <Text
+            style={[
+              font.caption,
+              {
+                color: mode === "auto" ? color.surface : color.textSecondary,
+                fontWeight: "700",
+              },
+            ]}
+          >
+            {mode === "auto" ? "Tự động" : "Thủ công"}
+          </Text>
+        </Pressable>
+      </View>
+
+      {/* 3 action buttons */}
+      <View style={{ flexDirection: "row", gap: spacing.sm }}>
+        {/* Mở */}
+        <Pressable
+          id="cover-btn-open"
+          onPress={() => handleAction("open_cover")}
+          disabled={!device.isOnline || busy}
+          accessibilityLabel="Mở mái che"
+          style={{
+            flex: 1,
+            paddingVertical: spacing.sm,
+            borderRadius: radius.md,
+            alignItems: "center",
+            backgroundColor: coverState === "open" ? color.primary : color.surfaceVariant,
+          }}
+        >
+          <Ionicons
+            name="chevron-up-outline"
+            size={20}
+            color={coverState === "open" ? color.surface : color.textPrimary}
+          />
+          <Text
+            style={[
+              font.caption,
+              {
+                marginTop: 2,
+                fontWeight: "700",
+                color: coverState === "open" ? color.surface : color.textPrimary,
+              },
+            ]}
+          >
+            Mở
+          </Text>
+        </Pressable>
+
+        {/* Dừng */}
+        <Pressable
+          id="cover-btn-stop"
+          onPress={() => handleAction("stop_cover")}
+          disabled={!device.isOnline || busy}
+          accessibilityLabel="Dừng mái che"
+          style={{
+            flex: 1,
+            paddingVertical: spacing.sm,
+            borderRadius: radius.md,
+            alignItems: "center",
+            backgroundColor: coverState === "stopped" ? color.surfaceVariant : color.surfaceVariant,
+            borderWidth: coverState === "stopped" ? 2 : 0,
+            borderColor: coverState === "stopped" ? color.primary : "transparent",
+          }}
+        >
+          {busy ? (
+            <ActivityIndicator size="small" color={color.primary} />
+          ) : (
+            <Ionicons name="stop-circle-outline" size={20} color={color.textPrimary} />
+          )}
+          <Text style={[font.caption, { marginTop: 2, fontWeight: "700", color: color.textPrimary }]}>
+            Dừng
+          </Text>
+        </Pressable>
+
+        {/* Đóng */}
+        <Pressable
+          id="cover-btn-close"
+          onPress={() => handleAction("close_cover")}
+          disabled={!device.isOnline || busy}
+          accessibilityLabel="Đóng mái che"
+          style={{
+            flex: 1,
+            paddingVertical: spacing.sm,
+            borderRadius: radius.md,
+            alignItems: "center",
+            backgroundColor: coverState === "closed" ? color.primary : color.surfaceVariant,
+          }}
+        >
+          <Ionicons
+            name="chevron-down-outline"
+            size={20}
+            color={coverState === "closed" ? color.surface : color.textPrimary}
+          />
+          <Text
+            style={[
+              font.caption,
+              {
+                marginTop: 2,
+                fontWeight: "700",
+                color: coverState === "closed" ? color.surface : color.textPrimary,
+              },
+            ]}
+          >
+            Đóng
+          </Text>
+        </Pressable>
+      </View>
+
+      {/* Offline notice */}
+      {!device.isOnline && (
+        <Text style={[font.caption, { color: color.textTertiary, marginTop: spacing.xs, textAlign: "center" }]}>
+          Thiết bị đang ngoại tuyến — không thể điều khiển
+        </Text>
+      )}
     </View>
   );
 }

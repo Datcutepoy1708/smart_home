@@ -4,6 +4,7 @@ import {
   IsISO8601,
   IsNumber,
   IsObject,
+  IsOptional,
   IsUUID,
   Max,
   Min,
@@ -16,10 +17,23 @@ class Readings {
   @Min(-40)
   @Max(80)
   temperature!: number;
+
   @IsNumber({ allowInfinity: false, allowNaN: false })
   @Min(0)
   @Max(100)
   humidity!: number;
+
+  @IsOptional()
+  @IsNumber()
+  rain?: number;
+
+  @IsOptional()
+  @IsNumber()
+  gas?: number;
+
+  @IsOptional()
+  @IsNumber()
+  fire?: number;
 }
 class Envelope {
   @Equals(1) schemaVersion!: number;

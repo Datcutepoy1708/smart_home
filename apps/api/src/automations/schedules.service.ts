@@ -12,7 +12,7 @@ import { CommandsService } from '../devices/commands.service.js';
 import type { CreateScheduleDto, UpdateScheduleDto } from './schedules.dto.js';
 
 interface ScheduleActionData {
-  action: 'turn_on' | 'turn_off' | 'open' | 'close' | 'set_angle';
+  action: 'turn_on' | 'turn_off' | 'open' | 'close' | 'set_angle' | 'open_cover' | 'close_cover';
   name?: string;
   params?: Record<string, unknown>;
 }
@@ -227,6 +227,39 @@ export class SchedulesService implements OnModuleInit, OnModuleDestroy {
         });
       }
 
+      // Seed default cover schedule
+      const cover = await this.prisma.device.findFirst({
+        where: { householdId, deviceType: 'COVER' },
+      });
+      if (cover) {
+        defaults.push({
+          householdId,
+          deviceId: cover.id,
+          action: {
+            action: 'close_cover',
+            name: 'Mái che đóng trước khi mưa chiều',
+            params: { state: 'closed' },
+          },
+          timeOfDay: this.parseTimeOfDay('17:00'),
+          repeatDays: [1, 2, 3, 4, 5, 6, 7],
+          isActive: true,
+          createdBy: userId,
+        });
+        defaults.push({
+          householdId,
+          deviceId: cover.id,
+          action: {
+            action: 'open_cover',
+            name: 'Mái che mở buổi sáng',
+            params: { state: 'open' },
+          },
+          timeOfDay: this.parseTimeOfDay('07:30'),
+          repeatDays: [1, 2, 3, 4, 5, 6, 7],
+          isActive: true,
+          createdBy: userId,
+        });
+      }
+
       if (defaults.length > 0) {
         await this.prisma.schedule.createMany({ data: defaults });
         return this.listSchedules(userId, householdId);
@@ -264,6 +297,8 @@ export class SchedulesService implements OnModuleInit, OnModuleDestroy {
       return `Mở ${dev} (${angle}°)`;
     }
     if (action === 'close') return `Đóng ${dev}`;
+    if (action === 'open_cover') return `Mở mái che ${dev}`;
+    if (action === 'close_cover') return `Đóng mái che ${dev}`;
     if (action === 'turn_on') return `Bật ${dev}`;
     if (action === 'turn_off') return `Tắt ${dev}`;
     return `Điều khiển ${dev}`;

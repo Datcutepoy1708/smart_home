@@ -23,7 +23,9 @@ enum DeviceType {
   LIGHT       @map("light")
   FAN         @map("fan")
   DOOR_SERVO  @map("door_servo")
+  COVER       @map("cover")
   DHT_SENSOR  @map("dht_sensor")
+  RAIN_SENSOR @map("rain_sensor")
   GAS_SENSOR  @map("gas_sensor")
   FIRE_SENSOR @map("fire_sensor")
 }

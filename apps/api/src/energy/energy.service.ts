@@ -69,7 +69,9 @@ export const DEFAULT_WATTAGES: Record<string, number> = {
   LIGHT: 20,       // 20W LED bulb
   FAN: 55,         // 55W Stand/Ceiling Fan
   DOOR_SERVO: 5,   // 5W Servo motor
+  COVER: 15,       // 15W N20 Geared Motor
   DHT_SENSOR: 1,   // 1W Microcontroller/Sensor
+  RAIN_SENSOR: 1,  // 1W Rain sensor
   GAS_SENSOR: 2,   // 2W
   FIRE_SENSOR: 1,  // 1W
 };

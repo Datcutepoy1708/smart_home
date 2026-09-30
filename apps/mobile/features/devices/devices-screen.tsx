@@ -115,15 +115,25 @@ function DeviceCard({
                     ? "bulb-outline"
                     : device.deviceType === "fan"
                     ? "aperture-outline"
-                    : device.deviceType === "door"
+                    : device.deviceType === "door" || device.deviceType === "door_servo"
                     ? "lock-closed-outline"
-                    : device.deviceType === "gas"
+                    : device.deviceType === "cover"
+                    ? "umbrella-outline"
+                    : device.deviceType === "rain_sensor"
+                    ? "rainy-outline"
+                    : device.deviceType === "fire_sensor"
                     ? "flame-outline"
+                    : device.deviceType === "gas" || device.deviceType === "gas_sensor"
+                    ? "alert-circle-outline"
                     : "thermometer-outline"
                 }
                 size={20}
                 color={
-                  isGas && device.isOnline ? color.error : color.textSecondary
+                  (isGas || device.deviceType === "fire_sensor") && device.isOnline
+                    ? color.error
+                    : device.deviceType === "rain_sensor" && device.isOnline
+                    ? color.primary
+                    : color.textSecondary
                 }
               />
             </View>
@@ -164,12 +174,15 @@ function DeviceCard({
           </View>
         ) : null}
 
-        {/* Controls: light, fan — interactive switch in Sprint 2 */}
+        {/* Controls: light, fan, door, cover */}
         {(device.deviceType === "light" || device.deviceType === "fan") && (
           <DeviceControlRow device={device} onRefresh={onRefresh} />
         )}
         {(device.deviceType === "door" || device.deviceType === "door_servo") && (
           <DoorControlRow device={device} onRefresh={onRefresh} />
+        )}
+        {device.deviceType === "cover" && (
+          <CoverControlRow device={device} onRefresh={onRefresh} />
         )}
 
         {/* Last seen */}
@@ -370,6 +383,153 @@ function DoorControlRow({
           thumbColor={color.surface}
           accessibilityLabel={`Mở hoặc đóng ${device.name}`}
         />
+      </View>
+    </View>
+  );
+}
+
+function CoverControlRow({
+  device,
+  onRefresh,
+}: {
+  device: Device;
+  onRefresh: () => void;
+}) {
+  const { session } = useSession();
+  const rawState = (device.state?.state as string) ?? "closed";
+  const rawMode = (device.state?.mode as string) ?? "auto";
+  const [coverState, setCoverState] = useState(rawState);
+  const [mode, setMode] = useState(rawMode);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!busy) {
+      if (typeof device.state?.state === "string") setCoverState(device.state.state);
+      if (typeof device.state?.mode === "string") setMode(device.state.mode);
+    }
+  }, [device.state?.state, device.state?.mode, busy]);
+
+  async function handleAction(action: "open_cover" | "close_cover" | "stop_cover") {
+    if (!device.isOnline || busy) return;
+    const householdId = session.identity?.households[0]?.id;
+    if (!householdId) return;
+
+    setBusy(true);
+    try {
+      await session.post(
+        `/households/${householdId}/devices/${device.id}/commands`,
+        { action },
+      );
+      setCoverState(action === "open_cover" ? "open" : action === "close_cover" ? "closed" : "stopped");
+      onRefresh();
+    } catch (e: unknown) {
+      Alert.alert(
+        "Lỗi điều khiển mái che",
+        e instanceof Error ? e.message : "Không thể gửi lệnh điều khiển tới mái che.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleToggleMode() {
+    if (!device.isOnline || busy) return;
+    const householdId = session.identity?.households[0]?.id;
+    if (!householdId) return;
+
+    const nextMode = mode === "auto" ? "manual" : "auto";
+    setBusy(true);
+    try {
+      await session.post(
+        `/households/${householdId}/devices/${device.id}/commands`,
+        { action: "set_mode", mode: nextMode },
+      );
+      setMode(nextMode);
+      onRefresh();
+    } catch (e: unknown) {
+      Alert.alert(
+        "Lỗi đổi chế độ",
+        e instanceof Error ? e.message : "Không thể chuyển chế độ điều khiển.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <View style={{ gap: spacing.xs, paddingVertical: spacing.xs }}>
+      <View style={[s.row, { justifyContent: "space-between" }]}>
+        <View style={s.rowStart}>
+          <Ionicons
+            name="umbrella"
+            size={18}
+            color={color.primary}
+          />
+          <Text style={[font.body, { fontWeight: "500" }]}>
+            {coverState === "open" ? "Mái che: Đang mở" : coverState === "closed" ? "Mái che: Đã đóng" : "Mái che: Dừng"}
+          </Text>
+        </View>
+        <Pressable
+          onPress={handleToggleMode}
+          disabled={!device.isOnline || busy}
+          style={{
+            paddingHorizontal: spacing.sm,
+            paddingVertical: 3,
+            borderRadius: radius.full,
+            backgroundColor: mode === "auto" ? color.primary : color.surfaceVariant,
+          }}
+        >
+          <Text style={[font.caption, { color: mode === "auto" ? color.surface : color.textSecondary, fontWeight: "600" }]}>
+            {mode === "auto" ? "Tự động (Auto)" : "Thủ công"}
+          </Text>
+        </Pressable>
+      </View>
+      <View style={[s.row, { gap: spacing.sm, marginTop: 4 }]}>
+        <Pressable
+          onPress={() => handleAction("open_cover")}
+          disabled={!device.isOnline || busy}
+          style={{
+            flex: 1,
+            paddingVertical: 7,
+            borderRadius: radius.md,
+            backgroundColor: coverState === "open" ? color.primary : color.surfaceVariant,
+            alignItems: "center",
+          }}
+        >
+          <Text style={{ color: coverState === "open" ? color.surface : color.textPrimary, fontWeight: "600", fontSize: 13 }}>
+            Mở
+          </Text>
+        </Pressable>
+        <Pressable
+          onPress={() => handleAction("close_cover")}
+          disabled={!device.isOnline || busy}
+          style={{
+            flex: 1,
+            paddingVertical: 7,
+            borderRadius: radius.md,
+            backgroundColor: coverState === "closed" ? color.primary : color.surfaceVariant,
+            alignItems: "center",
+          }}
+        >
+          <Text style={{ color: coverState === "closed" ? color.surface : color.textPrimary, fontWeight: "600", fontSize: 13 }}>
+            Đóng
+          </Text>
+        </Pressable>
+        <Pressable
+          onPress={() => handleAction("stop_cover")}
+          disabled={!device.isOnline || busy}
+          style={{
+            flex: 1,
+            paddingVertical: 7,
+            borderRadius: radius.md,
+            backgroundColor: color.surfaceVariant,
+            alignItems: "center",
+          }}
+        >
+          <Text style={{ color: color.textPrimary, fontWeight: "600", fontSize: 13 }}>
+            Dừng
+          </Text>
+        </Pressable>
       </View>
     </View>
   );

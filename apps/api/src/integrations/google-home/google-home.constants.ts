@@ -12,6 +12,7 @@ export const GOOGLE_DEVICE_TYPES = {
   LIGHT: 'action.devices.types.LIGHT',
   FAN: 'action.devices.types.FAN',
   DOOR: 'action.devices.types.DOOR',
+  AWNING: 'action.devices.types.AWNING',
   SENSOR: 'action.devices.types.SENSOR',
 } as const;
 

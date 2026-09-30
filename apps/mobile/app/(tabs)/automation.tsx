@@ -164,8 +164,16 @@ export default function AutomationScreen() {
 
   async function handleCreateScheduleSubmit(input: CreateScheduleInput) {
     if (!householdId) return;
-    const created = await createScheduleApi(session, householdId, input);
-    setSchedules((prev) => [created, ...prev]);
+    try {
+      const created = await createScheduleApi(session, householdId, input);
+      setSchedules((prev) => [created, ...prev]);
+    } catch (e: unknown) {
+      Alert.alert(
+        "Tạo lịch hẹn thất bại",
+        e instanceof Error ? e.message : "Không thể tạo lịch hẹn giờ. Vui lòng thử lại.",
+      );
+      throw e; // re-throw so modal stays open
+    }
   }
 
   // ---------------- SENSOR RULES HANDLERS ----------------

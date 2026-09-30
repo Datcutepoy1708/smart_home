@@ -1,7 +1,15 @@
 import type { Device } from "./device-data";
 
-export const isSensor = (device: Device) => ["dht_sensor", "gas_sensor", "fire_sensor"].includes(device.deviceType);
-export const metricName = (metric: string) => ({ temperature: "Nhiệt độ", humidity: "Độ ẩm", gas: "Nồng độ gas" })[metric] ?? metric;
+export const isSensor = (device: Device) =>
+  ["dht_sensor", "gas_sensor", "fire_sensor", "rain_sensor"].includes(device.deviceType);
+export const metricName = (metric: string) =>
+  ({
+    temperature: "Nhiệt độ",
+    humidity: "Độ ẩm",
+    gas: "Nồng độ gas",
+    rain: "Cảm biến mưa",
+    fire: "Cảm biến lửa",
+  })[metric] ?? metric;
 export function filterDevices(items: Device[], search: string, room: string | null, status: string) {
   const query = search.trim().toLocaleLowerCase("vi");
   return items.filter(device => (!query || `${device.name} ${device.room ?? ""}`.toLocaleLowerCase("vi").includes(query))

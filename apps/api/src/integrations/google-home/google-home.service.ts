@@ -136,6 +136,28 @@ export class GoogleHomeService {
             swVersion: '1.0',
           },
         });
+      } else if (typeLower === 'cover') {
+        devices.push({
+          id: item.id,
+          type: GOOGLE_DEVICE_TYPES.AWNING,
+          traits: [GOOGLE_TRAITS.OPEN_CLOSE],
+          name: {
+            defaultNames: [item.name, 'Mái che'],
+            name: item.name,
+            nicknames: [item.name, 'mái che', 'bạt che', 'mái hiên'],
+          },
+          willReportState: false,
+          roomHint: item.room || 'Ban công',
+          attributes: {
+            openDirection: ['OUT'],
+          },
+          deviceInfo: {
+            manufacturer: 'SmartHome',
+            model: 'ESP32-TB6612-Cover',
+            hwVersion: '1.0',
+            swVersion: '1.0',
+          },
+        });
       } else if (typeLower === 'dht_sensor') {
         devices.push({
           id: item.id,
@@ -208,6 +230,13 @@ export class GoogleHomeService {
           const isOpen = Boolean(
             rawState.open ?? (Number(rawState.angle ?? 0) > 0),
           );
+          deviceStates[target.id] = {
+            status: 'SUCCESS',
+            online: true,
+            openPercent: isOpen ? 100 : 0,
+          };
+        } else if (typeLower === 'cover') {
+          const isOpen = rawState.state === 'open' || rawState.position === 'open';
           deviceStates[target.id] = {
             status: 'SUCCESS',
             online: true,

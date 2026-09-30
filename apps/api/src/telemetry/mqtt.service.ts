@@ -126,7 +126,7 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
       Number(this.config.getOrThrow('MQTT_MAX_PAYLOAD_BYTES')));
     await this.prisma.device.updateMany({
       where: { id: message.deviceId, householdId: message.householdId,
-        deviceType: { in: ['LIGHT', 'FAN', 'DOOR_SERVO'] } },
+        deviceType: { in: ['LIGHT', 'FAN', 'DOOR_SERVO', 'COVER', 'RAIN_SENSOR', 'GAS_SENSOR', 'FIRE_SENSOR'] } },
       data: { isOnline: message.online,
         ...(message.online ? { lastSeenAt: new Date() } : {}) },
     });

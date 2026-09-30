@@ -9,7 +9,7 @@ export interface ScheduleItem {
   room?: string;
   name: string;
   time: string; // "HH:mm"
-  action: 'turn_on' | 'turn_off' | 'open' | 'close' | 'set_angle';
+  action: 'turn_on' | 'turn_off' | 'open' | 'close' | 'set_angle' | 'open_cover' | 'close_cover';
   params: Record<string, unknown>;
   repeatDays: number[];
   isActive: boolean;
@@ -20,7 +20,7 @@ export interface CreateScheduleInput {
   deviceId: string;
   name?: string;
   time: string; // "HH:mm"
-  action: 'turn_on' | 'turn_off' | 'open' | 'close' | 'set_angle';
+  action: 'turn_on' | 'turn_off' | 'open' | 'close' | 'set_angle' | 'open_cover' | 'close_cover';
   params?: Record<string, unknown>;
   repeatDays?: number[];
   isActive?: boolean;

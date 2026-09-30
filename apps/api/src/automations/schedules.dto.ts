@@ -37,11 +37,11 @@ export class CreateScheduleDto {
 
   @ApiProperty({
     description: 'Action to execute on target device',
-    enum: ['turn_on', 'turn_off', 'open', 'close', 'set_angle'],
+    enum: ['turn_on', 'turn_off', 'open', 'close', 'set_angle', 'open_cover', 'close_cover'],
   })
   @IsString()
-  @IsIn(['turn_on', 'turn_off', 'open', 'close', 'set_angle'])
-  action: 'turn_on' | 'turn_off' | 'open' | 'close' | 'set_angle';
+  @IsIn(['turn_on', 'turn_off', 'open', 'close', 'set_angle', 'open_cover', 'close_cover'])
+  action: 'turn_on' | 'turn_off' | 'open' | 'close' | 'set_angle' | 'open_cover' | 'close_cover';
 
   @ApiPropertyOptional({
     description: 'Additional parameters (e.g. { angle: 90 })',
@@ -94,12 +94,12 @@ export class UpdateScheduleDto {
 
   @ApiPropertyOptional({
     description: 'Action to execute on target device',
-    enum: ['turn_on', 'turn_off', 'open', 'close', 'set_angle'],
+    enum: ['turn_on', 'turn_off', 'open', 'close', 'set_angle', 'open_cover', 'close_cover'],
   })
   @IsOptional()
   @IsString()
-  @IsIn(['turn_on', 'turn_off', 'open', 'close', 'set_angle'])
-  action?: 'turn_on' | 'turn_off' | 'open' | 'close' | 'set_angle';
+  @IsIn(['turn_on', 'turn_off', 'open', 'close', 'set_angle', 'open_cover', 'close_cover'])
+  action?: 'turn_on' | 'turn_off' | 'open' | 'close' | 'set_angle' | 'open_cover' | 'close_cover';
 
   @ApiPropertyOptional()
   @IsOptional()

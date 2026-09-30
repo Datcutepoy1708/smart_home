@@ -56,7 +56,7 @@ export class CommandsService {
       throw new NotFoundException('Device not found');
     }
 
-    const params = commandParams(device.deviceType, dto.action, dto.angle);
+    const params = commandParams(device.deviceType, dto.action, dto.angle, dto.mode);
 
     // Check device online status
     const isOnline = Boolean(

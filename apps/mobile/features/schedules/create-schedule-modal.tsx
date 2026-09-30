@@ -29,16 +29,21 @@ export function CreateScheduleModal({
   devices,
 }: Props) {
   const controllableDevices = devices.filter(
-    (d) => d.deviceType === "FAN" || d.deviceType === "LIGHT" || d.deviceType === "DOOR_SERVO",
+    (d) =>
+      d.deviceType === "fan" ||
+      d.deviceType === "light" ||
+      d.deviceType === "door_servo" ||
+      d.deviceType === "door" ||
+      d.deviceType === "cover",
   );
 
   const [selectedDeviceId, setSelectedDeviceId] = useState<string>(
     controllableDevices[0]?.id || "",
   );
   const [time, setTime] = useState("07:00");
-  const [action, setAction] = useState<"turn_on" | "turn_off" | "open" | "close" | "set_angle">(
-    "open",
-  );
+  const [action, setAction] = useState<
+    "turn_on" | "turn_off" | "open" | "close" | "set_angle" | "open_cover" | "close_cover"
+  >("turn_on");
   const [angle, setAngle] = useState(90);
   const [repeatDays, setRepeatDays] = useState<number[]>([1, 2, 3, 4, 5, 6, 7]);
   const [customName, setCustomName] = useState("");
@@ -49,9 +54,11 @@ export function CreateScheduleModal({
 
   function handleSelectDevice(dev: Device) {
     setSelectedDeviceId(dev.id);
-    if (dev.deviceType === "DOOR_SERVO") {
+    if (dev.deviceType === "door_servo" || dev.deviceType === "door") {
       setAction("open");
       setAngle(90);
+    } else if (dev.deviceType === "cover") {
+      setAction("open_cover" as typeof action);
     } else {
       setAction("turn_on");
     }
@@ -82,25 +89,33 @@ export function CreateScheduleModal({
       const devName = selectedDevice?.name || "thiết bị";
       let autoName = customName.trim();
       if (!autoName) {
-        if (action === "open") autoName = `Mở ${devName} (${angle}°)`;
+        if (action === "open_cover") autoName = `Mở ${devName}`;
+        else if (action === "close_cover") autoName = `Đóng ${devName}`;
+        else if (action === "open") autoName = `Mở ${devName} (${angle}°)`;
         else if (action === "close") autoName = `Đóng ${devName}`;
         else if (action === "turn_on") autoName = `Bật ${devName}`;
         else autoName = `Tắt ${devName}`;
       }
+
+      const isCover = selectedDevice?.deviceType === "cover";
+      const isDoor = selectedDevice?.deviceType === "door_servo" || selectedDevice?.deviceType === "door";
 
       await onSubmit({
         deviceId: selectedDeviceId,
         name: autoName,
         time,
         action,
-        params:
-          selectedDevice?.deviceType === "DOOR_SERVO"
-            ? action === "open"
-              ? { angle, position: "open" }
-              : { angle: 0, position: "closed" }
-            : action === "turn_on"
-              ? { power: "on" }
-              : { power: "off" },
+        params: isCover
+          ? action === "open_cover"
+            ? { state: "open" }
+            : { state: "closed" }
+          : isDoor
+          ? action === "open"
+            ? { angle, position: "open" }
+            : { angle: 0, position: "closed" }
+          : action === "turn_on"
+          ? { power: "on" }
+          : { power: "off" },
         repeatDays,
         isActive: true,
       });
@@ -168,42 +183,93 @@ export function CreateScheduleModal({
               2. Chọn thiết bị
             </Text>
             <View style={styles.deviceRow}>
-              {controllableDevices.map((dev) => {
-                const isSelected = dev.id === selectedDeviceId;
-                let iconName: "key" | "hardware-chip" | "bulb" = "hardware-chip";
-                if (dev.deviceType === "DOOR_SERVO") iconName = "key";
-                if (dev.deviceType === "LIGHT") iconName = "bulb";
+              {controllableDevices.length === 0 ? (
+                <Text style={{ color: color.textTertiary, fontSize: 13 }}>
+                  Không có thiết bị điều khiển nào trong nhà.
+                </Text>
+              ) : (
+                controllableDevices.map((dev) => {
+                  const isSelected = dev.id === selectedDeviceId;
+                  const iconName =
+                    dev.deviceType === "door_servo" || dev.deviceType === "door"
+                      ? ("key" as const)
+                      : dev.deviceType === "light"
+                      ? ("bulb" as const)
+                      : dev.deviceType === "cover"
+                      ? ("umbrella" as const)
+                      : ("hardware-chip" as const);
 
-                return (
-                  <Pressable
-                    key={dev.id}
-                    style={[styles.devicePill, isSelected && styles.devicePillActive]}
-                    onPress={() => handleSelectDevice(dev)}
-                  >
-                    <Ionicons
-                      name={iconName}
-                      size={18}
-                      color={isSelected ? color.primary : color.textTertiary}
-                    />
-                    <Text
-                      style={[
-                        styles.devicePillText,
-                        isSelected && styles.devicePillTextActive,
-                      ]}
-                      numberOfLines={1}
+                  return (
+                    <Pressable
+                      key={dev.id}
+                      style={[styles.devicePill, isSelected && styles.devicePillActive]}
+                      onPress={() => handleSelectDevice(dev)}
                     >
-                      {dev.name}
-                    </Text>
-                  </Pressable>
-                );
-              })}
+                      <Ionicons
+                        name={iconName}
+                        size={18}
+                        color={isSelected ? color.primary : color.textTertiary}
+                      />
+                      <Text
+                        style={[
+                          styles.devicePillText,
+                          isSelected && styles.devicePillTextActive,
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {dev.name}
+                      </Text>
+                    </Pressable>
+                  );
+                })
+              )}
             </View>
 
             {/* 3. Chọn hành động */}
             <Text style={[styles.sectionLabel, { marginTop: spacing.md }]}>
               3. Hành động thực hiện
             </Text>
-            {selectedDevice?.deviceType === "DOOR_SERVO" ? (
+            {/* 3. Cover actions */}
+            {selectedDevice?.deviceType === "cover" ? (
+              <View style={styles.actionButtonsRow}>
+                <Pressable
+                  style={[styles.actionBtn, action === "open_cover" && styles.actionBtnActive]}
+                  onPress={() => setAction("open_cover")}
+                >
+                  <Ionicons
+                    name="chevron-up-outline"
+                    size={16}
+                    color={action === "open_cover" ? "#fff" : color.textPrimary}
+                  />
+                  <Text
+                    style={[
+                      styles.actionBtnText,
+                      action === "open_cover" && styles.actionBtnTextActive,
+                    ]}
+                  >
+                    Mở mái che
+                  </Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.actionBtn, action === "close_cover" && styles.actionBtnActive]}
+                  onPress={() => setAction("close_cover")}
+                >
+                  <Ionicons
+                    name="chevron-down-outline"
+                    size={16}
+                    color={action === "close_cover" ? "#fff" : color.textPrimary}
+                  />
+                  <Text
+                    style={[
+                      styles.actionBtnText,
+                      action === "close_cover" && styles.actionBtnTextActive,
+                    ]}
+                  >
+                    Đóng mái che
+                  </Text>
+                </Pressable>
+              </View>
+            ) : selectedDevice?.deviceType === "door_servo" || selectedDevice?.deviceType === "door" ? (
               <View>
                 <View style={styles.actionButtonsRow}>
                   <Pressable
