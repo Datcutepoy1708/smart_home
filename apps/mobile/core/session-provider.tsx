@@ -6,9 +6,14 @@ import {
   type PropsWithChildren,
 } from "react";
 import * as SecureStore from "expo-secure-store";
-import { Platform } from "react-native";
+import { Alert, Platform } from "react-native";
 import { Session, type Identity } from "./session";
 import { requestJson } from "./api-client";
+import {
+  registerFcmToken,
+  unregisterFcmToken,
+  setupNotificationListeners,
+} from "./fcm";
 let webToken: string | null = null;
 const key = "smart-home-refresh";
 const session = new Session(
@@ -66,8 +71,33 @@ export function SessionProvider({ children }: PropsWithChildren) {
     };
   }, [attempt]);
 
+  // Register FCM device token and listen for push notifications
+  useEffect(() => {
+    if (!identity) return;
+
+    // Register token with backend
+    registerFcmToken(session).catch(() => {
+      /* best effort */
+    });
+
+    // Listen to foreground notifications
+    const unsubscribe = setupNotificationListeners((remoteMessage) => {
+      if (remoteMessage.notification) {
+        Alert.alert(
+          remoteMessage.notification.title ?? "Thông báo Smart Home",
+          remoteMessage.notification.body ?? "",
+        );
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [identity]);
+
   const resetSession = async () => {
     try {
+      await unregisterFcmToken(session).catch(() => {});
       await session.logout();
     } catch {
       /* ignore */

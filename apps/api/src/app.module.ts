@@ -14,6 +14,7 @@ import { PrismaModule } from './prisma/prisma.module.js';
 
 import { EnergyModule } from './energy/energy.module.js';
 import { GoogleHomeModule } from './integrations/google-home/google-home.module.js';
+import { NotificationsModule } from './notifications/notifications.module.js';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { GoogleHomeModule } from './integrations/google-home/google-home.module.
     AutomationsModule,
     EnergyModule,
     GoogleHomeModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [

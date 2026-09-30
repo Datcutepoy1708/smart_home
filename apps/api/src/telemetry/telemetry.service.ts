@@ -1,8 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { parseTelemetry } from './telemetry-payload.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 
 export type TelemetryHook = (
   householdId: string,
@@ -11,12 +12,25 @@ export type TelemetryHook = (
 
 @Injectable()
 export class TelemetryService {
+  private readonly logger = new Logger(TelemetryService.name);
   private readonly hooks: TelemetryHook[] = [];
+  private readonly lastAlertSent = new Map<string, number>();
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly notifications: NotificationsService,
   ) {}
+
+  private canSendAlert(key: string, cooldownMs = 60_000): boolean {
+    const now = Date.now();
+    const lastTime = this.lastAlertSent.get(key) ?? 0;
+    if (now - lastTime > cooldownMs) {
+      this.lastAlertSent.set(key, now);
+      return true;
+    }
+    return false;
+  }
 
   onTelemetry(hook: TelemetryHook) {
     this.hooks.push(hook);
@@ -147,6 +161,31 @@ export class TelemetryService {
           timeout: Number(this.config.getOrThrow('DB_TRANSACTION_TIMEOUT_MS')),
         },
       );
+
+      // Trigger push notifications asynchronously (with throttling)
+      if (message.data.fire === 1 && this.canSendAlert(`fire:${message.householdId}`, 60_000)) {
+        this.notifications.notifyHousehold(message.householdId, {
+          title: '🔥 CẢNH BÁO HỎA HOẠN KHẨN CẤP!',
+          body: 'Phát hiện ngọn lửa tại nhà bạn! Vui lòng kiểm tra ngay lập tức!',
+          data: { type: 'FIRE_ALERT', householdId: message.householdId },
+        }).catch((err) => this.logger.error('Failed to dispatch fire push notification:', err));
+      }
+
+      if (message.data.gas === 1 && this.canSendAlert(`gas:${message.householdId}`, 60_000)) {
+        this.notifications.notifyHousehold(message.householdId, {
+          title: '⚠️ CẢNH BÁO RÒ RỈ KHÍ GAS!',
+          body: 'Phát hiện nồng độ khí gas / khói vượt ngưỡng an toàn!',
+          data: { type: 'GAS_ALERT', householdId: message.householdId },
+        }).catch((err) => this.logger.error('Failed to dispatch gas push notification:', err));
+      }
+
+      if (message.data.rain === 1 && this.canSendAlert(`rain:${message.householdId}`, 180_000)) {
+        this.notifications.notifyHousehold(message.householdId, {
+          title: '🌧️ Phát hiện trời mưa',
+          body: 'Cảm biến phát hiện trời mưa, hệ thống đã tự động đóng mái che.',
+          data: { type: 'RAIN_ALERT', householdId: message.householdId },
+        }).catch((err) => this.logger.error('Failed to dispatch rain push notification:', err));
+      }
 
       // Evaluate active hooks (e.g. automations) with incoming readings
       const hookReadings: Array<{ metric: string; value: number }> = [];

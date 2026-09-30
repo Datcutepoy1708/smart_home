@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { router } from "expo-router";
 import {
+  Alert,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -307,20 +308,42 @@ export default function SettingsScreen() {
           />
         </Section>
 
-        {/* ── Notification options ── deferred (FCM Sprint 3) ── */}
+        {/* ── Notification options ── */}
         <Section title="Tuỳ chọn thông báo">
           <SettingsItem
             icon="notifications-outline"
-            label="Thông báo đẩy & Cảnh báo âm thanh khẩn cấp"
-            subtitle="Khả dụng sau khi tích hợp FCM (Sprint 3)"
-            disabled
+            label="Thông báo đẩy & Cảnh báo an toàn"
+            subtitle="Đã kích hoạt với Firebase Cloud Messaging"
             trailing={
               <Switch
-                value={false}
+                value={true}
                 disabled
                 trackColor={{ false: color.borderStrong, true: color.primary }}
               />
             }
+          />
+          <Divider />
+          <SettingsItem
+            icon="paper-plane-outline"
+            label="Gửi thông báo thử nghiệm"
+            subtitle="Kiểm tra nhận thông báo đẩy trên điện thoại"
+            onPress={async () => {
+              try {
+                await session.post('/notifications/test', {
+                  title: '🔔 Thử nghiệm thông báo Smart Home',
+                  body: 'Hệ thống đẩy thông báo FCM đã kết nối thành công!',
+                });
+                Alert.alert(
+                  'Đã gửi lệnh',
+                  'Máy chủ đã phát lệnh gửi thông báo qua Firebase Cloud Messaging.',
+                );
+              } catch (err: any) {
+                Alert.alert(
+                  'Lỗi gửi thông báo',
+                  err?.message ?? 'Không thể gửi thông báo thử nghiệm. Vui lòng kiểm tra lại kết nối.',
+                );
+              }
+            }}
           />
         </Section>
 
