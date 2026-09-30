@@ -3,7 +3,7 @@ import type { ConfigContext, ExpoConfig } from 'expo/config';
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: 'Smart Home',
-  slug: 'smart-home',
+  slug: 'smart-home-iot',
   version: '0.1.0',
   orientation: 'portrait',
   icon: './assets/images/icon.png',
