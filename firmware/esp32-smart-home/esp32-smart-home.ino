@@ -542,6 +542,7 @@ void sendSensorTelemetry() {
   bool gas  = isGasDetected();
   bool fire = isFireDetected();
 
+  // 1. Telemetry tổng hợp cho SENSOR_ID (DHT11 + toàn bộ cảm biến)
   JsonDocument doc;
   doc["schemaVersion"]       = 1;
   doc["messageId"]           = makeUuid();
@@ -552,10 +553,46 @@ void sendSensorTelemetry() {
   doc["data"]["rain"]        = rain ? 1 : 0;
   doc["data"]["gas"]         = gas  ? 1 : 0;
   doc["data"]["fire"]        = fire ? 1 : 0;
-
   sendJson(topicFor(SENSOR_ID, "telemetry"), doc);
-  Serial.printf("[TELEMETRY] Temp: %.1fC | Hum: %.0f%% | Rain: %d | Gas: %d | Fire: %d\n",
-    temperature, humidity, rain ? 1 : 0, gas ? 1 : 0, fire ? 1 : 0);
+
+  // 2. Telemetry riêng cho GAS_ID (để thiết bị Cảm biến Gas MQ-2 trên App nhận được)
+  if (validUuid(GAS_ID)) {
+    JsonDocument gasDoc;
+    gasDoc["schemaVersion"] = 1;
+    gasDoc["messageId"]     = makeUuid();
+    gasDoc["deviceId"]      = GAS_ID;
+    gasDoc["timestamp"]     = ts;
+    gasDoc["data"]["gas"]   = gas ? 1 : 0;
+    sendJson(topicFor(GAS_ID, "telemetry"), gasDoc);
+  }
+
+  // 3. Telemetry riêng cho FIRE_ID (để thiết bị Cảm biến Lửa trên App nhận được)
+  if (validUuid(FIRE_ID)) {
+    JsonDocument fireDoc;
+    fireDoc["schemaVersion"] = 1;
+    fireDoc["messageId"]     = makeUuid();
+    fireDoc["deviceId"]      = FIRE_ID;
+    fireDoc["timestamp"]     = ts;
+    fireDoc["data"]["fire"]  = fire ? 1 : 0;
+    sendJson(topicFor(FIRE_ID, "telemetry"), fireDoc);
+  }
+
+  // 4. Telemetry riêng cho RAIN_ID (để thiết bị Cảm biến Mưa trên App nhận được)
+  if (validUuid(RAIN_ID)) {
+    JsonDocument rainDoc;
+    rainDoc["schemaVersion"] = 1;
+    rainDoc["messageId"]     = makeUuid();
+    rainDoc["deviceId"]      = RAIN_ID;
+    rainDoc["timestamp"]     = ts;
+    rainDoc["data"]["rain"]  = rain ? 1 : 0;
+    sendJson(topicFor(RAIN_ID, "telemetry"), rainDoc);
+  }
+
+  Serial.printf("[TELEMETRY] Temp: %.1fC | Hum: %.0f%% | Rain: %d (raw=%d) | Gas: %d (raw=%d) | Fire: %d (raw=%d)\n",
+    temperature, humidity,
+    rain ? 1 : 0, digitalRead(RAIN_PIN),
+    gas  ? 1 : 0, digitalRead(MQ2_PIN),
+    fire ? 1 : 0, digitalRead(FLAME_PIN));
 }
 
 // ── Interactive Serial Command Handler ────────────────────────────────────────
@@ -590,10 +627,9 @@ void handleSerialCommand() {
       float hum  = dht.readHumidity();
       Serial.println("\n========== SENSOR STATUS ==========");
       Serial.printf("Temp: %.1f C | Hum: %.1f %%\n", temp, hum);
-      Serial.printf("Rain: %s | Fire: %s | MQ-2: %s\n",
-        isRaining() ? "RAIN DETECTED" : "NO RAIN",
-        isFireDetected() ? "FIRE DETECTED!" : "NORMAL",
-        isGasDetected() ? "GAS DETECTED!" : "NORMAL");
+      Serial.printf("Rain (pin %d): %s (raw=%d)\n", RAIN_PIN, isRaining() ? "RAIN DETECTED!" : "NO RAIN", digitalRead(RAIN_PIN));
+      Serial.printf("Fire (pin %d): %s (raw=%d)\n", FLAME_PIN, isFireDetected() ? "FIRE DETECTED!" : "NORMAL", digitalRead(FLAME_PIN));
+      Serial.printf("MQ-2 (pin %d): %s (raw=%d)\n", MQ2_PIN, isGasDetected() ? "GAS/SMOKE DETECTED!" : "NORMAL", digitalRead(MQ2_PIN));
       Serial.printf("LED: %s | Fan: %s | Door: %s | Mode: %s\n",
         lightOn ? "ON" : "OFF", fanOn ? "ON" : "OFF",
         (doorAngle == DOOR_OPEN_ANGLE) ? "OPEN" : "CLOSED",
