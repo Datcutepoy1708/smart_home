@@ -42,6 +42,8 @@ bool manualFan  = false;             // true: user explicitly turned fan on/off 
 int  doorAngle  = DOOR_CLOSED_ANGLE; // 0 = closed, 90 = open
 bool autoMode   = true;              // AUTO / MANUAL
 bool lastRainState = false;
+bool lastGasState  = false;
+bool lastFireState = false;
 
 void sendSensorTelemetry();
 
@@ -280,10 +282,32 @@ void automaticFanControl(float temperature) {
 }
 
 void automaticGasControl() {
-  if (isGasDetected()) {
-    if (!fanOn) {
-      Serial.println("[AUTO] Gas/Smoke detected -> Emergency Fan ON!");
+  bool gas = isGasDetected();
+  if (gas != lastGasState) {
+    lastGasState = gas;
+    if (gas) {
+      Serial.println("[ALERT] GAS/SMOKE DETECTED! Emergency Fan ON & sending instant alert to Cloud...");
       turnFanOn();
+      sendSensorTelemetry(); // Bắn telemetry gas=1 ngay lập tức lên Cloud để nổ thông báo về điện thoại
+    } else {
+      Serial.println("[AUTO] Gas/Smoke cleared -> Normal state");
+      sendSensorTelemetry();
+    }
+  } else if (gas && !fanOn) {
+    turnFanOn();
+  }
+}
+
+void automaticFireControl() {
+  bool fire = isFireDetected();
+  if (fire != lastFireState) {
+    lastFireState = fire;
+    if (fire) {
+      Serial.println("[ALERT] FIRE DETECTED! Sending instant emergency alert to Cloud...");
+      sendSensorTelemetry(); // Bắn telemetry fire=1 ngay lập tức lên Cloud để nổ chuông báo cháy
+    } else {
+      Serial.println("[AUTO] Fire cleared -> Normal state");
+      sendSensorTelemetry();
     }
   }
 }
@@ -332,10 +356,7 @@ void automaticSystem() {
   automaticFanControl(temperature);
   automaticGasControl();
   automaticCoverControl();
-
-  if (isFireDetected()) {
-    Serial.println("[AUTO] WARNING: FIRE DETECTED!!!");
-  }
+  automaticFireControl();
 }
 
 // ── MQTT Message Queue & Receive ─────────────────────────────────────────────
