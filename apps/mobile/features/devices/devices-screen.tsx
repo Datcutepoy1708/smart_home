@@ -22,6 +22,7 @@ import { color, font, radius, spacing } from "../../shared/theme";
 import type { Device } from "./device-data";
 import { FloatingVoiceButton } from "../voice/floating-voice-button";
 import { EnergyWidget } from "../energy/energy-widget";
+import { QuickScenesWidget } from "../scenes/quick-scenes-widget";
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -649,6 +650,15 @@ export default function DevicesScreen() {
             clearButtonMode="while-editing"
           />
         </View>
+
+        {/* Quick Scenes on Home Screen */}
+        {home ? (
+          <QuickScenesWidget
+            session={session}
+            householdId={home.id}
+            onTriggered={refresh}
+          />
+        ) : null}
 
         {/* Energy Consumption & Electricity Cost Widget */}
         {home ? <EnergyWidget householdId={home.id} /> : null}

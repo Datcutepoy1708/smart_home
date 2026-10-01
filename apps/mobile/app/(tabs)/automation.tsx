@@ -30,6 +30,7 @@ import {
   triggerScheduleApi,
   formatRepeatDays,
   createScheduleApi,
+  updateScheduleApi,
   type ScheduleItem,
   type CreateScheduleInput,
 } from "../../features/schedules/schedules-data";
@@ -52,6 +53,7 @@ export default function AutomationScreen() {
   // State for Schedules
   const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
   const [scheduleModalVisible, setScheduleModalVisible] = useState(false);
+  const [editingSchedule, setEditingSchedule] = useState<ScheduleItem | null>(null);
   const [togglingScheduleId, setTogglingScheduleId] = useState<string | null>(null);
   const [triggeringScheduleId, setTriggeringScheduleId] = useState<string | null>(null);
 
@@ -162,15 +164,22 @@ export default function AutomationScreen() {
     }
   }
 
-  async function handleCreateScheduleSubmit(input: CreateScheduleInput) {
+  async function handleScheduleSubmit(input: CreateScheduleInput, scheduleId?: string) {
     if (!householdId) return;
     try {
-      const created = await createScheduleApi(session, householdId, input);
-      setSchedules((prev) => [created, ...prev]);
+      if (scheduleId) {
+        const updated = await updateScheduleApi(session, householdId, scheduleId, input);
+        setSchedules((prev) => prev.map((s) => (s.id === scheduleId ? updated : s)));
+        Alert.alert("Thành công", "Đã cập nhật lịch hẹn giờ.");
+      } else {
+        const created = await createScheduleApi(session, householdId, input);
+        setSchedules((prev) => [created, ...prev]);
+        Alert.alert("Thành công", "Đã tạo lịch hẹn giờ mới.");
+      }
     } catch (e: unknown) {
       Alert.alert(
-        "Tạo lịch hẹn thất bại",
-        e instanceof Error ? e.message : "Không thể tạo lịch hẹn giờ. Vui lòng thử lại.",
+        scheduleId ? "Cập nhật lịch hẹn thất bại" : "Tạo lịch hẹn thất bại",
+        e instanceof Error ? e.message : "Vui lòng thử lại.",
       );
       throw e; // re-throw so modal stays open
     }
@@ -326,7 +335,10 @@ export default function AutomationScreen() {
               <Pressable
                 accessibilityRole="button"
                 style={st.addButton}
-                onPress={() => setScheduleModalVisible(true)}
+                onPress={() => {
+                  setEditingSchedule(null);
+                  setScheduleModalVisible(true);
+                }}
               >
                 <Ionicons name="add" size={18} color="#fff" />
                 <Text style={st.addButtonText}>Thêm hẹn giờ</Text>
@@ -361,7 +373,10 @@ export default function AutomationScreen() {
                 </Text>
                 <Pressable
                   style={st.emptyCreateBtn}
-                  onPress={() => setScheduleModalVisible(true)}
+                  onPress={() => {
+                    setEditingSchedule(null);
+                    setScheduleModalVisible(true);
+                  }}
                 >
                   <Ionicons name="add-circle" size={18} color="#fff" />
                   <Text style={st.emptyCreateBtnText}>Thêm lịch hẹn giờ đầu tiên</Text>
@@ -451,23 +466,36 @@ export default function AutomationScreen() {
                         </View>
                       </View>
 
-                      {/* Footer Actions: Test Trigger & Delete */}
+                      {/* Footer Actions: Test Trigger, Edit & Delete */}
                       <View style={st.scheduleCardFooter}>
-                        <Pressable
-                          style={[
-                            st.testBtn,
-                            triggeringScheduleId === schedule.id && { opacity: 0.5 },
-                          ]}
-                          onPress={() => handleTriggerSchedule(schedule)}
-                          disabled={triggeringScheduleId === schedule.id}
-                        >
-                          <Ionicons name="play" size={14} color={color.primary} />
-                          <Text style={st.testBtnText}>
-                            {triggeringScheduleId === schedule.id
-                              ? "Đang chạy..."
-                              : "Chạy thử"}
-                          </Text>
-                        </Pressable>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.xs }}>
+                          <Pressable
+                            style={[
+                              st.testBtn,
+                              triggeringScheduleId === schedule.id && { opacity: 0.5 },
+                            ]}
+                            onPress={() => handleTriggerSchedule(schedule)}
+                            disabled={triggeringScheduleId === schedule.id}
+                          >
+                            <Ionicons name="play" size={14} color={color.primary} />
+                            <Text style={st.testBtnText}>
+                              {triggeringScheduleId === schedule.id
+                                ? "Đang chạy..."
+                                : "Chạy thử"}
+                            </Text>
+                          </Pressable>
+
+                          <Pressable
+                            style={st.editBtn}
+                            onPress={() => {
+                              setEditingSchedule(schedule);
+                              setScheduleModalVisible(true);
+                            }}
+                          >
+                            <Ionicons name="create-outline" size={14} color={color.primary} />
+                            <Text style={st.editBtnText}>Sửa</Text>
+                          </Pressable>
+                        </View>
 
                         <Pressable
                           hitSlop={8}
@@ -752,9 +780,13 @@ export default function AutomationScreen() {
       {/* Modal tạo lịch hẹn giờ */}
       <CreateScheduleModal
         visible={scheduleModalVisible}
-        onClose={() => setScheduleModalVisible(false)}
-        onSubmit={handleCreateScheduleSubmit}
+        onClose={() => {
+          setScheduleModalVisible(false);
+          setEditingSchedule(null);
+        }}
+        onSubmit={handleScheduleSubmit}
         devices={devices}
+        editingSchedule={editingSchedule}
       />
 
       {/* Modal tạo kịch bản cảm biến */}
@@ -1017,13 +1049,29 @@ const st = StyleSheet.create({
     gap: 4,
     backgroundColor: "#eff6ff",
     paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
+    paddingVertical: 5,
     borderRadius: radius.sm,
   },
   testBtnText: {
     fontSize: 11,
     fontWeight: "700",
     color: color.primary,
+  },
+  editBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#f1f5f9",
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 5,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: color.border,
+  },
+  editBtnText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: color.textSecondary,
   },
   ruleHeader: {
     flexDirection: "row",

@@ -11,6 +11,7 @@ export interface ScheduleItem {
   time: string; // "HH:mm"
   action: 'turn_on' | 'turn_off' | 'open' | 'close' | 'set_angle' | 'open_cover' | 'close_cover';
   params: Record<string, unknown>;
+  durationMinutes?: number | null;
   repeatDays: number[];
   isActive: boolean;
   createdAt: string;
@@ -22,6 +23,7 @@ export interface CreateScheduleInput {
   time: string; // "HH:mm"
   action: 'turn_on' | 'turn_off' | 'open' | 'close' | 'set_angle' | 'open_cover' | 'close_cover';
   params?: Record<string, unknown>;
+  durationMinutes?: number | null;
   repeatDays?: number[];
   isActive?: boolean;
 }
@@ -40,6 +42,19 @@ export async function createScheduleApi(
   input: CreateScheduleInput,
 ): Promise<ScheduleItem> {
   const res = await session.post(`/households/${householdId}/schedules`, input);
+  return res as ScheduleItem;
+}
+
+export async function updateScheduleApi(
+  session: Session,
+  householdId: string,
+  scheduleId: string,
+  input: Partial<CreateScheduleInput>,
+): Promise<ScheduleItem> {
+  const res = await session.patch(
+    `/households/${householdId}/schedules/${scheduleId}`,
+    input,
+  );
   return res as ScheduleItem;
 }
 

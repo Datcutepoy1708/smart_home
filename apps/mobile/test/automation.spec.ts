@@ -25,6 +25,9 @@ vi.mock("../shared/components/screen-header", () => ({
 vi.mock("@expo/vector-icons/Ionicons", () => ({
   default: () => null,
 }));
+vi.mock("react-native-safe-area-context", () => ({
+  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+}));
 vi.mock("react-native", () => ({
   View: "section",
   Text: "span",
@@ -36,6 +39,8 @@ vi.mock("react-native", () => ({
   TextInput: "input",
   Switch: "input",
   Modal: "div",
+  Platform: { OS: "ios" },
+  KeyboardAvoidingView: "div",
   StyleSheet: { create: (value: unknown) => value },
 }));
 
