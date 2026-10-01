@@ -52,8 +52,15 @@ export class NotificationsService {
     });
   }
 
+  isFcmReady(): boolean {
+    return this.fcm.isReady();
+  }
+
   async notifyHousehold(householdId: string, payload: PushNotificationPayload) {
     if (!this.fcm.isReady()) {
+      this.logger.warn(
+        `Cannot send push notification to household ${householdId}: Firebase Admin SDK is not ready`,
+      );
       return { successCount: 0, failureCount: 0 };
     }
 
@@ -102,6 +109,9 @@ export class NotificationsService {
 
   async notifyUser(userId: string, payload: PushNotificationPayload) {
     if (!this.fcm.isReady()) {
+      this.logger.warn(
+        `Cannot send push notification to user ${userId}: Firebase Admin SDK is not ready`,
+      );
       return { successCount: 0, failureCount: 0 };
     }
 

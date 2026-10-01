@@ -63,6 +63,7 @@ export class NotificationsController {
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: TestNotificationDto,
   ) {
+    const fcmReady = this.notifications.isFcmReady();
     const result = await this.notifications.notifyUser(user.id, {
       title: dto.title ?? '🔔 Kiểm tra thông báo Smart Home',
       body: dto.body ?? 'Hệ thống thông báo đẩy FCM đã kết nối thành công!',
@@ -70,6 +71,7 @@ export class NotificationsController {
     });
     return {
       success: true,
+      fcmReady,
       result,
     };
   }

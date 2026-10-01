@@ -39,6 +39,15 @@ export class FcmService implements OnModuleInit {
     }
 
     try {
+      privateKey = privateKey.trim();
+      // Remove wrapping quotes if present from env string
+      if (
+        (privateKey.startsWith('"') && privateKey.endsWith('"')) ||
+        (privateKey.startsWith("'") && privateKey.endsWith("'"))
+      ) {
+        privateKey = privateKey.slice(1, -1);
+      }
+
       // Normalize escaped newlines if passed through environment variables
       if (privateKey.includes('\\n')) {
         privateKey = privateKey.replace(/\\n/g, '\n');
