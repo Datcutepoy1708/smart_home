@@ -8,11 +8,13 @@ export class ApiError extends Error {
   }
 }
 
+const DEFAULT_API_URL = "https://smarthome-production-8fea.up.railway.app/api/v1";
+
 export async function requestJson(
   path: string,
   options: RequestInit = {},
 ): Promise<unknown> {
-  const rawBase = process.env.EXPO_PUBLIC_API_URL;
+  const rawBase = process.env.EXPO_PUBLIC_API_URL || DEFAULT_API_URL;
   if (!rawBase) throw new ApiError("API address is not configured.");
   const isAndroid =
     process.env.EXPO_OS === "android" ||

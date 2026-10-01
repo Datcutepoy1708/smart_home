@@ -9,10 +9,18 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://smarthome-production-8fea.up.railway.app/api/v1",
+        "EXPO_PUBLIC_REQUEST_TIMEOUT_MS": "10000"
       }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://smarthome-production-8fea.up.railway.app/api/v1",
+        "EXPO_PUBLIC_REQUEST_TIMEOUT_MS": "10000"
+      }
     }
   },
   "submit": { "production": {} }

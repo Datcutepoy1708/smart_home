@@ -150,6 +150,17 @@ export class TelemetryService {
               },
             });
           }
+          if (message.data.rain === 1) {
+            await tx.alert.create({
+              data: {
+                householdId: message.householdId,
+                deviceId: device.id,
+                alertType: 'RAIN_DETECTED',
+                severity: 'WARNING',
+                message: 'Phát hiện trời mưa, mái che đã được đóng tự động!',
+              },
+            });
+          }
 
           await tx.device.update({
             where: { id: device.id },
