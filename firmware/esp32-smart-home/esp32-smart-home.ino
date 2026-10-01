@@ -46,7 +46,6 @@ bool lastGasState  = false;
 bool lastFireState = false;
 bool manualGasSim  = false;
 bool manualFireSim = false;
-int  gasBaseline   = 0;
 
 void sendSensorTelemetry();
 
@@ -264,32 +263,8 @@ bool isFireDetected() {
 
 bool isGasDetected() {
   if (manualGasSim) return true;
-
   int dVal = digitalRead(MQ2_PIN);
-  int aVal = analogRead(MQ2_PIN);
-
-  // 1. Phán đoán Digital nếu module kéo chân DO về mức LOW (phần cứng chuẩn)
-  if (dVal == LOW && MQ2_ACTIVE_LOW) return true;
-  if (dVal == HIGH && !MQ2_ACTIVE_LOW) return true;
-
-  // 2. Phán đoán Analog với cơ chế trễ (Hysteresis) chống kẹt trạng thái:
-  static bool inGasState = false;
-  if (!inGasState) {
-    // Chỉ kích hoạt khi nồng độ gas thực sự mạnh (vọt trên 2200 hoặc tăng vọt hơn 800 so với mức nền)
-    if (aVal > 2200 || (gasBaseline > 0 && (aVal - gasBaseline > 800))) {
-      inGasState = true;
-      return true;
-    }
-  } else {
-    // Khi đang báo gas: Chỉ giữ báo động nếu nồng độ vẫn cao; khi quạt thổi tan bớt gas (< 1700) sẽ tự nhả về 0
-    if (aVal > 1700 || (gasBaseline > 0 && (aVal - gasBaseline > 500))) {
-      return true;
-    } else {
-      inGasState = false;
-    }
-  }
-
-  return false;
+  return MQ2_ACTIVE_LOW ? (dVal == LOW) : (dVal == HIGH);
 }
 
 // ── Automatic System Control ─────────────────────────────────────────────────
@@ -319,7 +294,8 @@ void automaticGasControl() {
       turnFanOn();
       sendSensorTelemetry(); // Bắn telemetry gas=1 ngay lập tức lên Cloud để nổ thông báo về điện thoại
     } else {
-      Serial.println("[AUTO] Gas/Smoke cleared -> Normal state");
+      Serial.println("[AUTO] Gas/Smoke cleared -> Fan OFF & Normal state");
+      if (!manualFan) turnFanOff(); // Tự động ngắt quạt khi hết sạch gas
       sendSensorTelemetry();
     }
   } else if (gas && !fanOn) {
@@ -658,9 +634,7 @@ void handleSerialCommand() {
       Serial.printf("Temp: %.1f C | Hum: %.1f %%\n", temp, hum);
       Serial.printf("Rain (pin %d): %s (raw=%d)\n", RAIN_PIN, isRaining() ? "RAIN DETECTED!" : "NO RAIN", digitalRead(RAIN_PIN));
       Serial.printf("Fire (pin %d): %s (raw=%d)\n", FLAME_PIN, isFireDetected() ? "FIRE DETECTED!" : "NORMAL", digitalRead(FLAME_PIN));
-      Serial.printf("MQ-2 (pin %d): %s (rawD=%d, rawA=%d, baseA=%d)\n",
-        MQ2_PIN, isGasDetected() ? "GAS/SMOKE DETECTED!" : "NORMAL",
-        digitalRead(MQ2_PIN), analogRead(MQ2_PIN), gasBaseline);
+      Serial.printf("MQ-2 (pin %d): %s (raw=%d)\n", MQ2_PIN, isGasDetected() ? "GAS/SMOKE DETECTED!" : "NORMAL", digitalRead(MQ2_PIN));
       Serial.printf("LED: %s | Fan: %s | Door: %s | Mode: %s\n",
         lightOn ? "ON" : "OFF", fanOn ? "ON" : "OFF",
         (doorAngle == DOOR_OPEN_ANGLE) ? "OPEN" : "CLOSED",
@@ -711,20 +685,10 @@ void setup() {
   turnLedOff();
   turnFanOff();
 
-  // Sensor pins
+  // Sensor pins (PULLUP prevents floating pins from causing false alarms)
   pinMode(RAIN_PIN, INPUT_PULLUP);
   pinMode(FLAME_PIN, INPUT_PULLUP);
-  pinMode(MQ2_PIN, INPUT); // Cho phép đọc cả Digital và Analog trên chân 14
-
-  // Tự động đo mức nền Gas phòng (không cần vặn chiết áp)
-  delay(100);
-  long sumGas = 0;
-  for (int i = 0; i < 15; i++) {
-    sumGas += analogRead(MQ2_PIN);
-    delay(20);
-  }
-  gasBaseline = (int)(sumGas / 15);
-  Serial.printf("[MQ2] Auto-calibrated initial baseline = %d\n", gasBaseline);
+  pinMode(MQ2_PIN, INPUT_PULLUP);
 
   // Peripherals
   dht.begin();
