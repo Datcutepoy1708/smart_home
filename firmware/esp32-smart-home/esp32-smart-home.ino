@@ -268,14 +268,26 @@ bool isGasDetected() {
   int dVal = digitalRead(MQ2_PIN);
   int aVal = analogRead(MQ2_PIN);
 
-  // 1. Phán đoán Digital nếu module kéo chân DO về mức LOW
+  // 1. Phán đoán Digital nếu module kéo chân DO về mức LOW (phần cứng chuẩn)
   if (dVal == LOW && MQ2_ACTIVE_LOW) return true;
   if (dVal == HIGH && !MQ2_ACTIVE_LOW) return true;
 
-  // 2. Cứu cánh khi đã dán keo: Tự động đo Analog trên chân 14
-  // Nếu nồng độ tăng cao (điện áp analog vượt 1400 hoặc tăng vọt hơn 350 so với mức nền)
-  if (aVal > 1400) return true;
-  if (gasBaseline > 0 && (aVal - gasBaseline > 350)) return true;
+  // 2. Phán đoán Analog với cơ chế trễ (Hysteresis) chống kẹt trạng thái:
+  static bool inGasState = false;
+  if (!inGasState) {
+    // Chỉ kích hoạt khi nồng độ gas thực sự mạnh (vọt trên 2200 hoặc tăng vọt hơn 800 so với mức nền)
+    if (aVal > 2200 || (gasBaseline > 0 && (aVal - gasBaseline > 800))) {
+      inGasState = true;
+      return true;
+    }
+  } else {
+    // Khi đang báo gas: Chỉ giữ báo động nếu nồng độ vẫn cao; khi quạt thổi tan bớt gas (< 1700) sẽ tự nhả về 0
+    if (aVal > 1700 || (gasBaseline > 0 && (aVal - gasBaseline > 500))) {
+      return true;
+    } else {
+      inGasState = false;
+    }
+  }
 
   return false;
 }
