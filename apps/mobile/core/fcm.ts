@@ -1,4 +1,4 @@
-import { Platform } from 'react-native';
+import { Platform, PermissionsAndroid } from 'react-native';
 
 let messagingInstance: any = null;
 
@@ -24,6 +24,16 @@ export async function requestNotificationPermission(): Promise<boolean> {
   if (!messaging) return false;
 
   try {
+    if (Platform.OS === 'android' && (Platform.Version as number) >= 33) {
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+      );
+      if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+        console.warn('[FCM] Android POST_NOTIFICATIONS permission not granted');
+        return false;
+      }
+    }
+
     const authStatus = await messaging().requestPermission();
     const enabled =
       authStatus === messaging.AuthorizationStatus.AUTHORIZED ||

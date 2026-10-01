@@ -23,6 +23,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       monochromeImage: './assets/images/android-icon-monochrome.png',
     },
     predictiveBackGestureEnabled: false,
+    permissions: [
+      'android.permission.POST_NOTIFICATIONS',
+      'android.permission.VIBRATE',
+    ],
   },
   web: {
     output: 'static',

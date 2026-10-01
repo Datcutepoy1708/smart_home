@@ -38,8 +38,12 @@ MQTTClient mqtt(2048);      // 2 kB receive buffer
 // ── States ───────────────────────────────────────────────────────────────────
 bool lightOn    = false;
 bool fanOn      = false;
-int  doorAngle  = DOOR_CLOSED_ANGLE; // 90 = closed, 0 = open
+bool manualFan  = false;             // true: user explicitly turned fan on/off manually
+int  doorAngle  = DOOR_CLOSED_ANGLE; // 0 = closed, 90 = open
 bool autoMode   = true;              // AUTO / MANUAL
+bool lastRainState = false;
+
+void sendSensorTelemetry();
 
 enum CoverState {
   COVER_UNKNOWN,
@@ -159,22 +163,39 @@ void turnFanOff() {
 
 // ── Door (Servo) Control ─────────────────────────────────────────────────────
 
+void writeServoAngle(int angle) {
+  doorAngle = constrain(angle, 0, 180);
+  int physicalAngle = INVERT_DOOR_SERVO ? (90 - doorAngle) : doorAngle;
+  physicalAngle = constrain(physicalAngle, 0, 180);
+
+  // Cơ chế mượn nguồn phụ thông minh:
+  // Nếu Quạt đang tắt, tạm thời đóng Relay quạt để cấp nguồn 5V cho Servo quay
+  bool wasFanOn = fanOn;
+  if (!wasFanOn) {
+    setRelay(RELAY_FAN, true);
+    delay(40); // Chờ 40ms cho điện áp 5V cấp tới Servo ổn định
+  }
+
+  doorServo.write(physicalAngle);
+  Serial.printf("[DOOR] Logical = %d | Physical Servo = %d\n", doorAngle, physicalAngle);
+
+  // Chờ servo hoàn tất hành trình quay (400ms là đủ cho MG90S quay 90°)
+  delay(400);
+
+  // Nếu trước đó quạt đang tắt thì ngắt Relay quạt lại, bảo toàn trạng thái quạt
+  if (!wasFanOn) {
+    setRelay(RELAY_FAN, false);
+  }
+}
+
 void openDoor() {
-  doorAngle = DOOR_OPEN_ANGLE;
-  doorServo.write(doorAngle);
+  writeServoAngle(DOOR_OPEN_ANGLE);
   Serial.println("[DOOR] OPEN");
 }
 
 void closeDoor() {
-  doorAngle = DOOR_CLOSED_ANGLE;
-  doorServo.write(doorAngle);
+  writeServoAngle(DOOR_CLOSED_ANGLE);
   Serial.println("[DOOR] CLOSE");
-}
-
-void writeServoAngle(int angle) {
-  doorAngle = constrain(angle, 0, 180);
-  doorServo.write(doorAngle);
-  Serial.printf("[DOOR] ANGLE = %d\n", doorAngle);
 }
 
 // ── Motor / Cover (Mái che) Control ──────────────────────────────────────────
@@ -243,7 +264,7 @@ bool isGasDetected() {
 // ── Automatic System Control ─────────────────────────────────────────────────
 
 void automaticFanControl(float temperature) {
-  if (isnan(temperature)) return;
+  if (isnan(temperature) || manualFan) return;
 
   if (temperature >= FAN_ON_TEMP) {
     if (!fanOn) {
@@ -270,7 +291,26 @@ void automaticGasControl() {
 void automaticCoverControl() {
   if (motorRunning) return;
 
-  if (isRaining()) {
+  bool rain = isRaining();
+
+  // Instant trigger upon rain state transition
+  if (rain != lastRainState) {
+    lastRainState = rain;
+    if (rain) {
+      Serial.println("[ALERT] RAIN DETECTED! Closing cover & sending instant alert to Cloud...");
+      if (coverState == COVER_OPENING) stopMotor();
+      startClosingCover();
+      sendSensorTelemetry(); // Gửi ngay telemetry rain=1 lên Cloud để bắn thông báo về điện thoại
+    } else {
+      Serial.println("[AUTO] Rain stopped -> Opening cover");
+      if (coverState == COVER_CLOSING) stopMotor();
+      startOpeningCover();
+      sendSensorTelemetry();
+    }
+    return;
+  }
+
+  if (rain) {
     if (coverState == COVER_OPEN || coverState == COVER_UNKNOWN || coverState == COVER_OPENING) {
       Serial.println("[AUTO] Rain detected -> Closing cover");
       if (coverState == COVER_OPENING) stopMotor();
@@ -372,9 +412,13 @@ void processCommand(const String &topic, const String &payload) {
     else if (strcmp(action, "turn_off") == 0) turnLedOff();
     else failureReason = "invalid_command";
   } else if (kind == DEV_FAN) {
-    if (strcmp(action, "turn_on") == 0) turnFanOn();
-    else if (strcmp(action, "turn_off") == 0) turnFanOff();
-    else failureReason = "invalid_command";
+    if (strcmp(action, "turn_on") == 0) {
+      manualFan = true;
+      turnFanOn();
+    } else if (strcmp(action, "turn_off") == 0) {
+      manualFan = true;
+      turnFanOff();
+    } else failureReason = "invalid_command";
   } else if (kind == DEV_DOOR) {
     if (strcmp(action, "open") == 0) openDoor();
     else if (strcmp(action, "close") == 0) closeDoor();
@@ -396,6 +440,7 @@ void processCommand(const String &topic, const String &payload) {
     } else if (strcmp(action, "set_mode") == 0) {
       const char *m = cmd["params"]["mode"] | "auto";
       autoMode = (strcmp(m, "auto") == 0);
+      if (autoMode) manualFan = false;
       Serial.printf("[MODE] %s\n", autoMode ? "AUTO" : "MANUAL");
     } else {
       failureReason = "invalid_command";
@@ -420,14 +465,19 @@ void processCommand(const String &topic, const String &payload) {
     ack["state"]["position"] = (doorAngle == DOOR_OPEN_ANGLE) ? "open" : "closed";
     ack["state"]["angle"]    = doorAngle;
   } else if (kind == DEV_COVER) {
-    const char *st = "unknown";
-    if (coverState == COVER_OPEN) st = "open";
-    else if (coverState == COVER_CLOSED) st = "closed";
-    else if (coverState == COVER_OPENING) st = "opening";
-    else if (coverState == COVER_CLOSING) st = "closing";
-    else st = "stopped";
-    ack["state"]["state"] = st;
-    ack["state"]["mode"]  = autoMode ? "auto" : "manual";
+    if (strcmp(action, "set_mode") == 0) {
+      ack["state"]["mode"] = autoMode ? "auto" : "manual";
+    } else {
+      const char *st = "stopped";
+      if (strcmp(action, "open") == 0 || strcmp(action, "open_cover") == 0) st = "open";
+      else if (strcmp(action, "close") == 0 || strcmp(action, "close_cover") == 0) st = "closed";
+      else if (strcmp(action, "stop") == 0 || strcmp(action, "stop_cover") == 0) st = "stopped";
+      else if (coverState == COVER_OPEN) st = "open";
+      else if (coverState == COVER_CLOSED) st = "closed";
+      else if (coverState == COVER_OPENING) st = "opening";
+      else if (coverState == COVER_CLOSING) st = "closing";
+      ack["state"]["state"] = st;
+    }
   }
 
   String ts = nowIso();
@@ -554,10 +604,10 @@ void setup() {
   turnLedOff();
   turnFanOff();
 
-  // Sensor pins
-  pinMode(RAIN_PIN, INPUT);
-  pinMode(FLAME_PIN, INPUT);
-  pinMode(MQ2_PIN, INPUT);
+  // Sensor pins (PULLUP prevents floating pins from causing false alarms)
+  pinMode(RAIN_PIN, INPUT_PULLUP);
+  pinMode(FLAME_PIN, INPUT_PULLUP);
+  pinMode(MQ2_PIN, INPUT_PULLUP);
 
   // Peripherals
   dht.begin();
