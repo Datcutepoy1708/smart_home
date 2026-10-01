@@ -49,7 +49,7 @@ export class DevicesService {
         },
         readings: {
           orderBy: [{ recordedAt: 'desc' }, { id: 'desc' }],
-          take: 2,
+          take: 10,
           select: { metric: true, value: true, unit: true, recordedAt: true },
         },
       },
@@ -264,7 +264,7 @@ export class DevicesService {
         },
         readings: {
           orderBy: [{ recordedAt: 'desc' }, { id: 'desc' }],
-          take: 2,
+          take: 10,
           select: { metric: true, value: true, unit: true, recordedAt: true },
         },
       },
@@ -282,7 +282,7 @@ export class DevicesService {
         select: {
           readings: {
             orderBy: [{ recordedAt: 'desc' }, { id: 'desc' }],
-            take: 2,
+            take: 10,
             select: { metric: true, value: true, unit: true, recordedAt: true },
           },
         },

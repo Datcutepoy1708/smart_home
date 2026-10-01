@@ -203,7 +203,19 @@ export class CommandsService {
     try {
       newState = confirmedCommandState(device.deviceType, ackResult.state);
       // An ACK for a different target must not turn a failed operation into success.
-      if (Object.entries(params).some(([key, value]) => newState[key] !== value))
+      if (
+        Object.entries(params).some(([key, value]) => {
+          if (
+            device.deviceType === 'COVER' &&
+            key === 'state' &&
+            ((value === 'closed' && (newState.state === 'closed' || newState.state === 'closing')) ||
+              (value === 'open' && (newState.state === 'open' || newState.state === 'opening')))
+          ) {
+            return false;
+          }
+          return newState[key] !== value;
+        })
+      )
         throw new ConflictException('Device did not reach the requested output');
     } catch (error) {
       await this.prisma.deviceCommand.update({
