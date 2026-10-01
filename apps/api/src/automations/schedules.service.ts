@@ -15,6 +15,7 @@ interface ScheduleActionData {
   action: 'turn_on' | 'turn_off' | 'open' | 'close' | 'set_angle' | 'open_cover' | 'close_cover';
   name?: string;
   params?: Record<string, unknown>;
+  durationMinutes?: number;
 }
 
 @Injectable()
@@ -281,6 +282,7 @@ export class SchedulesService implements OnModuleInit, OnModuleDestroy {
         time: this.formatTimeOfDay(s.timeOfDay),
         action: actionData.action,
         params: actionData.params ?? {},
+        durationMinutes: actionData.durationMinutes ?? null,
         repeatDays: s.repeatDays,
         timezone: s.timezone,
         nextRunAt: s.nextRunAt?.toISOString() ?? null,
@@ -320,6 +322,7 @@ export class SchedulesService implements OnModuleInit, OnModuleDestroy {
       action: dto.action,
       name: dto.name || this.getDefaultName(device.name, dto.action, dto.params),
       params: dto.params,
+      durationMinutes: dto.durationMinutes,
     };
 
     const timeOfDay = this.parseTimeOfDay(dto.time);
@@ -357,6 +360,7 @@ export class SchedulesService implements OnModuleInit, OnModuleDestroy {
       time: this.formatTimeOfDay(schedule.timeOfDay),
       action: actionData.action,
       params: actionData.params ?? {},
+      durationMinutes: actionData.durationMinutes ?? null,
       repeatDays: schedule.repeatDays,
       timezone: schedule.timezone,
       nextRunAt: schedule.nextRunAt?.toISOString() ?? null,
@@ -387,6 +391,7 @@ export class SchedulesService implements OnModuleInit, OnModuleDestroy {
       action: dto.action ?? existingAction.action,
       name: dto.name ?? existingAction.name,
       params: dto.params !== undefined ? dto.params : existingAction.params,
+      durationMinutes: dto.durationMinutes !== undefined ? dto.durationMinutes : existingAction.durationMinutes,
     };
 
     const updatedTime =
@@ -406,7 +411,8 @@ export class SchedulesService implements OnModuleInit, OnModuleDestroy {
         ...(dto.time !== undefined ? { timeOfDay: updatedTime } : {}),
         ...(dto.action !== undefined ||
         dto.params !== undefined ||
-        dto.name !== undefined
+        dto.name !== undefined ||
+        dto.durationMinutes !== undefined
           ? { action: updatedAction as unknown as Prisma.InputJsonValue }
           : {}),
         ...(dto.repeatDays !== undefined ? { repeatDays: dto.repeatDays } : {}),
@@ -431,6 +437,7 @@ export class SchedulesService implements OnModuleInit, OnModuleDestroy {
       time: this.formatTimeOfDay(schedule.timeOfDay),
       action: updatedAction.action,
       params: updatedAction.params ?? {},
+      durationMinutes: updatedAction.durationMinutes ?? null,
       repeatDays: schedule.repeatDays,
       timezone: schedule.timezone,
       nextRunAt: schedule.nextRunAt?.toISOString() ?? null,
@@ -476,6 +483,33 @@ export class SchedulesService implements OnModuleInit, OnModuleDestroy {
       },
       CommandSource.SCHEDULE,
     );
+
+    if (actionData.durationMinutes && actionData.durationMinutes > 0) {
+      const durMs = actionData.durationMinutes * 60 * 1000;
+      const reverseAction =
+        actionData.action === 'turn_on'
+          ? 'turn_off'
+          : actionData.action === 'open'
+          ? 'close'
+          : actionData.action === 'open_cover'
+          ? 'close_cover'
+          : null;
+      if (reverseAction) {
+        setTimeout(async () => {
+          try {
+            await this.commands.executeCommand(
+              userId,
+              householdId,
+              schedule.deviceId,
+              { action: reverseAction as any, ...(reverseAction === 'close' ? { angle: 0 } : {}) },
+              CommandSource.SCHEDULE,
+            );
+          } catch (autoErr) {
+            this.logger.error(`[SCHEDULE DURATION TEST] Auto-off error for ${schedule.deviceId}`, autoErr);
+          }
+        }, durMs);
+      }
+    }
 
     return { success: true, commandResult: result };
   }
@@ -534,6 +568,45 @@ export class SchedulesService implements OnModuleInit, OnModuleDestroy {
           },
           CommandSource.SCHEDULE,
         );
+
+        if (actionData.durationMinutes && actionData.durationMinutes > 0) {
+          const durMs = actionData.durationMinutes * 60 * 1000;
+          const reverseAction =
+            actionData.action === 'turn_on'
+              ? 'turn_off'
+              : actionData.action === 'open'
+              ? 'close'
+              : actionData.action === 'open_cover'
+              ? 'close_cover'
+              : null;
+          if (reverseAction) {
+            this.logger.log(
+              `[SCHEDULE DURATION] Scheduled auto-off (${reverseAction}) in ${actionData.durationMinutes}m for ${schedule.deviceId}`,
+            );
+            setTimeout(async () => {
+              try {
+                this.logger.log(
+                  `[SCHEDULE DURATION] Executing auto-off (${reverseAction}) for ${schedule.deviceId}`,
+                );
+                await this.commands.executeCommand(
+                  schedule.createdBy,
+                  schedule.householdId,
+                  schedule.deviceId,
+                  {
+                    action: reverseAction as any,
+                    ...(reverseAction === 'close' ? { angle: 0 } : {}),
+                  },
+                  CommandSource.SCHEDULE,
+                );
+              } catch (autoErr) {
+                this.logger.error(
+                  `[SCHEDULE DURATION] Auto-off error for ${schedule.deviceId}`,
+                  autoErr,
+                );
+              }
+            }, durMs);
+          }
+        }
 
         // If one-time schedule, disable it; otherwise calculate next occurrence
         if (repeats.length === 0) {

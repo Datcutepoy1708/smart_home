@@ -64,6 +64,16 @@ export class CreateScheduleDto {
   @Max(7, { each: true })
   repeatDays?: number[];
 
+  @ApiPropertyOptional({
+    description: 'Auto turn-off/close duration in minutes (0 or undefined for indefinite)',
+    example: 30,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(1440)
+  durationMinutes?: number;
+
   @ApiPropertyOptional({ default: true })
   @IsOptional()
   @IsBoolean()
@@ -105,6 +115,16 @@ export class UpdateScheduleDto {
   @IsOptional()
   @IsObject()
   params?: Record<string, unknown>;
+
+  @ApiPropertyOptional({
+    description: 'Auto turn-off/close duration in minutes (0 or undefined for indefinite)',
+    example: 30,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(1440)
+  durationMinutes?: number;
 
   @ApiPropertyOptional()
   @IsOptional()

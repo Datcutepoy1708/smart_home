@@ -99,7 +99,7 @@ export class CommandsService {
 
     // 5. Register ACK handler BEFORE publishing to avoid race condition
     //    where the device ACKs before we even start listening.
-    const timeoutMs = 5000;
+    const timeoutMs = 10000;
     const ackResult = await new Promise<{
       commandId: string;
       status: string;
